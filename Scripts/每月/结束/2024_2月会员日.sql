@@ -1,0 +1,2349 @@
+————————————————————————————————————————————————————————————————OKR数据——————————————————————————————————————————————————————————————————————————————
+
+--# 公众号拉新
+select count(distinct tci.id) "公众号拉新"
+from ods_cust.ods_cust_tm_customer_info_d tci
+global join (
+	select unionid, min(create_time) first_subscribe_time
+	from ods_vwl.ods_vwl_es_car_owners_d
+	where unionid<>''
+	and subscribe_status=1 -- 关注
+	group by unionid   
+) t2 on tci.union_id = t2.unionid
+inner join (
+	select distinct_id, `time` 
+	from ods_rawd.ods_rawd_events_d_di a
+	where 1=1
+	and a.`date` = '2024-02-25'
+	and distinct_id not like '%#%'
+	and length(a.distinct_id)<9
+	and event = 'Page_entry'
+	and page_title='2月会员日'
+	and activity_name='2024年2月会员日'
+	and (($lib in('iOS','Android') and left($app_version,1)='5') or $lib ='MiniProgram' or  channel in ('Mini', 'App') )
+)x 
+on toString(x.distinct_id) =toString(tci.id) 
+where abs(DATEDIFF('minute',t2.first_subscribe_time,x.time))<=10
+
+--活动pv、uv、车主数
+select 
+--	count(user_id) as "双端pv",
+	count(case when (($lib in('iOS','Android') and left($app_version,1)='5') or channel='App') then user_id end) as "App_pv",
+	count(case when ($lib ='MiniProgram' or channel='Mini') then user_id end) as "Mini_pv",
+--	count(distinct user_id) as "双端uv",
+	count(distinct case when (($lib in('iOS','Android') and left($app_version,1)='5') or channel='App') then user_id end) as "App_uv",
+	count(distinct case when ($lib ='MiniProgram' or  channel='Mini') then user_id end) as "Mini_uv",
+	count(distinct case when is_bind =1 then user_id end) as "双端车主数",
+	count(distinct case when (($lib in('iOS','Android') and left($app_version,1)='5') or channel='App') and is_bind =1 then user_id end) as "App车主数",
+	count(distinct case when ($lib ='MiniProgram' or  channel='Mini') and is_bind =1 then user_id end) as "Mini车主数"
+from ods_rawd.ods_rawd_events_d_di
+where 1=1
+and `date` = '2024-02-25'
+and event='Page_entry'
+and page_title ='2月会员日'
+and activity_name = '2024年2月会员日'
+--and distinct_id not like '%#%'
+--and length(distinct_id)<9
+and (($lib in('iOS','Android') and left($app_version,1)='5') or $lib ='MiniProgram' or  channel in ('Mini', 'App'))
+
+select 
+	count(distinct user_id)
+--	count(distinct distinct_id)
+from ods_rawd.ods_rawd_events_d_di
+where 1=1
+and `date` >= '2024-01-01'
+and event='Page_entry'
+and page_title ='2月会员日'
+and activity_name = '2024年2月会员日'
+and (($lib in('iOS','Android') and left($app_version,1)='5') or $lib ='MiniProgram' or  channel in ('Mini', 'App'))
+
+--老用户参与数
+SELECT count(distinct  dy.distinct_id) "老用户参与数"
+from (
+--12月参加活动人数
+select distinct_id
+from ods_rawd.ods_rawd_events_d_di
+where 1=1
+and `date` = '2024-02-25' 
+and (($lib in('iOS','Android') and left($app_version,1)='5') or $lib ='MiniProgram' or  channel in ('Mini', 'App'))
+and event= 'Page_entry' 
+and page_title ='2月会员日'
+and activity_name = '2024年2月会员日'
+and LENGTH(distinct_id)<9
+group by distinct_id
+) dy 
+left join (
+SELECT distinct_id
+FROM ods_rawd.ods_rawd_events_d_di
+where 1=1
+and (($lib in('iOS','Android') and left($app_version,1)='5') or $lib ='MiniProgram' or  channel in ('Mini', 'App'))
+and ((`date` = '2023-01-25' and event= 'Page_view' and page_title ='2月会员日' and subtitle_name = '2023年2月会员日')
+or (`date` = '2023-02-25' and event= 'Page_entry' and page_title ='2月会员日'and activity_name = '2023年2月会员日')
+or (`date` = '2023-03-25' and event= 'Page_entry' and page_title ='3月会员日'and activity_name = '2023年3月会员日')
+or (`date` = '2023-04-25' and event= 'Page_entry' and page_title ='4月会员日'and activity_name = '2023年4月会员日')
+or (`date` = '2023-06-25' and event= 'Page_entry' and page_title ='6月会员日'and activity_name = '2023年6月会员日')
+or (`date` = '2023-07-25' and event= 'Page_entry' and page_title ='7月会员日'and activity_name = '2023年7月会员日')
+or (`date` = '2023-08-25' and event= 'Page_entry' and page_title ='8月会员日'and activity_name = '2023年8月会员日')
+or (`date` = '2023-09-25' and event= 'Page_entry' and page_title ='9月会员日'and activity_name = '2023年9月会员日')
+or (`date` = '2023-10-25' and event= 'Page_entry' and page_title ='10月会员日'and activity_name = '2023年10月会员日')
+or (`date` = '2023-11-25' and event= 'Page_entry' and page_title ='12月会员日'and activity_name = '2023年12月会员日'))
+and LENGTH(distinct_id)<9
+group by distinct_id
+) his
+on his.distinct_id = dy.distinct_id
+
+-- 拉新人数（App/Mini注册会员）
+select 
+--count(distinct a.user_id) "双端拉新",
+count(distinct case when a.channel='App' then a.user_id end) "App拉新",
+count(distinct case when a.channel='Mini' then a.user_id end) "Mini拉新",
+count(distinct case when a.is_bind =1 then a.user_id end) "双端拉新车主",
+count(distinct case when a.channel='App' and a.is_bind =1 then a.user_id end) "App拉新车主",
+count(distinct case when a.channel='Mini' and a.is_bind =1 then a.user_id end) "Mini拉新车主"
+from
+(-- 访问过活动的用户-App/Mini
+	select 
+		a.user_id,distinct_id,`time`,is_bind,
+		case 
+			when (($lib in('iOS','Android') and left($app_version,1)='5') or channel = 'App') then 'App'
+			when ($lib ='MiniProgram' or  channel ='Mini') then 'Mini'
+		end as channel
+	from ods_rawd.ods_rawd_events_d_di a
+	where 1=1
+	--and event='Page_entry'
+	and length(distinct_id)<9 
+	and date = '2024-02-25'
+	and page_title ='2月会员日'
+	and activity_name = '2024年2月会员日'
+	and (($lib in('iOS','Android') and left($app_version,1)='5') or $lib ='MiniProgram' or  channel in ('Mini', 'App') )--双端
+	--and (($lib in('iOS','Android') and left($app_version,1)='5') or channel = 'App') --App
+	--and ($lib ='MiniProgram' or  channel ='Mini')--Mini
+)a 
+join
+(-- 注册会员
+	select distinct m.cust_id,m.create_time
+	from ods_memb.ods_memb_tc_member_info_cur m 
+	where 1=1
+	and m.is_deleted =0 
+	and date(m.create_time) = '2024-02-25'
+)b 
+on a.distinct_id=b.cust_id::varchar
+where 1=1
+and abs(date_diff(second,toDateTime(a.time),toDateTime(b.create_time)))<=600
+
+
+
+--激活人数
+SELECT 
+--	count(distinct a.distinct_id) as "双端激活",
+	count(distinct case when a.channel='App' then a.distinct_id end) as "App激活",
+	count(distinct case when a.channel='Mini' then a.distinct_id end) as "Mini激活",
+	count(distinct case when a.is_bind=1 then a.distinct_id end) as "双端车主激活",
+	count(distinct case when a.channel='App' and a.is_bind=1 then a.distinct_id end) as "App车主激活",
+	count(distinct case when a.channel='Mini' and a.is_bind=1 then a.distinct_id end) as "Mini车主激活"
+--	a.`date` d0,a.distinct_id u0,b.d1,b.u1,b.d2,b.u2,c.cust_id,date_diff(day,b.d2, b.d1)
+from (
+	--访问活动页的日期和用户ID
+	select 
+		a.date,a.distinct_id, 
+		case
+			when (($lib in('iOS','Android') and left($app_version,1)='5') or channel = 'App') then 'App'
+			when ($lib ='MiniProgram' or  channel ='Mini') then 'Mini'
+		end as channel,
+		case when sum(a.is_bind)>0 then 1 else 0 end as is_bind
+	from ods_rawd.ods_rawd_events_d_di a
+	where 1=1
+	and (($lib in('iOS','Android') and left($app_version,1)='5') or $lib ='MiniProgram' or  channel in ('Mini', 'App'))
+	and page_title ='2月会员日'
+	and activity_name = '2024年2月会员日'
+	and length(distinct_id)<9 
+	and date='2024-02-25'
+	group by date,a.distinct_id,channel
+	order by a.`date` ,a.distinct_id
+) a
+	left join (
+	--访问日期及上次访问日期&日期差
+	SELECT level2_1.distinct_id u1
+	,level2_1.date as d1
+	,level2_1.rk rk1
+	,level2_2.distinct_id u2
+	,level2_2.date as d2
+	,level2_2.rk rk2
+		from (
+		SELECT level1.date
+		,level1.distinct_id
+		,row_number() over(partition by level1.distinct_id order by level1.date desc) as rk
+			from (
+			select date,a.distinct_id
+			from ods_rawd.ods_rawd_events_d_di a
+			where 1=1
+			and (($lib in('iOS','Android') and left($app_version,1)='5') or $lib ='MiniProgram' or  channel in ('Mini', 'App') )
+			and length(distinct_id)<9 
+			and date>=date_sub(date('2024-02-25'),31)
+			and date<='2024-02-25'
+			group by date,a.distinct_id
+			order by a.`date` ,a.distinct_id
+			) level1
+		Settings allow_experimental_window_functions = 1
+		) level2_1
+		left join (
+		SELECT level1.date
+		,level1.distinct_id
+		,row_number() over(partition by level1.distinct_id order by level1.date desc) as rk
+			from (
+			select date,a.distinct_id
+			from ods_rawd.ods_rawd_events_d_di a
+			where 1=1
+			and (($lib in('iOS','Android') and left($app_version,1)='5') or $lib ='MiniProgram' or  channel in ('Mini', 'App') )
+			and length(distinct_id)<9 
+			and date>=date_sub(date('2024-02-25'),31)
+			and date<='2024-02-25'
+			group by date,a.distinct_id
+			order by a.`date` ,a.distinct_id
+			) level1
+		Settings allow_experimental_window_functions = 1
+		) level2_2
+	on level2_2.distinct_id=level2_1.distinct_id and cast(level2_2.rk-1 as int)=cast(level2_1.rk as int)
+) b
+on b.u1=a.distinct_id and b.d1=a.`date` 
+	left join (
+	--会员表识别是否为新用户
+	select m.cust_id
+	,min(m.create_time) mtime
+	from ods_memb.ods_memb_tc_member_info_cur m 
+	where m.member_status <> '60341003' and m.is_deleted =0 
+	and date(m.create_time) = '2024-02-25'
+	group by m.cust_id
+) c 
+on c.cust_id::varchar = a.distinct_id
+where 1=1
+and date_diff(day,b.d2, b.d1)>=30
+--and (date_diff(day,b.d2, b.d1)>=30 or b.u2 is null)
+and c.cust_id is null
+
+--5、发帖人数（#沃尔沃会员日#）、发帖数量（#沃尔沃会员日#）
+select count(distinct a.会员ID) as 发帖人数,count(a.会员ID) as 发帖数量
+from (-- 此刻发帖明细
+select 
+a.member_id 会员ID,
+a.post_id 内容ID,
+case when tmi.IS_VEHICLE = '1' then '车主'
+ 	 when tmi.IS_VEHICLE = '0' then '粉丝'
+end 是否车主,
+tmi.real_NAME 用户姓名, 
+tmi.MEMBER_NAME 社区昵称,
+case when tmi.MEMBER_SEX = '10021001' then '男'
+	 when tmi.MEMBER_SEX = '10021002' then '女' 
+	 else '未知'
+end 性别,
+tmi.MEMBER_PHONE 沃世界注册手机号码,
+a.create_time 发帖日期,
+fatie.发帖内容 as 发帖内容,
+CHAR_LENGTH(fatie.发帖内容) 发帖字数,
+replace(regexp_replace(regexp_replace(fatie.发帖内容,'<.*?>', '', 'g'),'#(.*?)#','', 'g'),' ','') 发帖内容new,
+char_length(replace(regexp_replace(regexp_replace(fatie.发帖内容,'<.*?>', '', 'g'),'#(.*?)#','', 'g'),' ','')) 发帖字数new,
+fatie.发帖图片链接,
+fatie.发帖图片数量,
+a.like_count 点赞数
+from community.tm_post a
+left join `member`.tc_member_info tmi on a.member_id =tmi.id and tmi.IS_DELETED =0
+left join (-- 发帖内容、图片
+select
+t.post_id,
+replace(string_agg(case when t.类型='text' then t.内容 else null end ,''),' ','') as 发帖内容,
+string_agg(case when t.类型='image' then t.内容 else null end ,';') as 发帖图片链接,
+count(case when t.类型='image' then t.内容 else null end) as 发帖图片数量
+from (
+	select
+	tpm.post_id,
+	tpm.create_time,
+	tpm.node_content 发帖内容,
+	json_array_elements(tpm.node_content::json)->>'nodeType' 类型,
+	json_array_elements(tpm.node_content::json)->>'nodeContent' 内容
+	from community.tt_post_material tpm
+	where date(tpm.create_time)='2024-02-25'
+	and tpm.is_deleted = 0
+) as t
+group by t.post_id
+) fatie
+on fatie.post_id=a.post_id
+where a.is_deleted =0
+and date(a.create_time)='2024-02-25'
+and a.post_id in ( -- 话题id
+	select distinct b.post_id
+	from community.tr_topic_post_link b 
+	where b.topic_id in ('0HKm8x4Lni') --沃尔沃会员日话题id
+	and b.is_deleted=0)
+) as a
+
+-- 邀请试驾线索量
+select count(x.`邀请人手机号`)
+from 
+	(
+	SELECT  
+	distinct 
+		tir.invite_code as invite_code,
+		tir.invite_member_id `邀请人会员ID`,
+		m.member_phone `邀请人手机号`,
+		tir.create_time `邀约时间`,
+		tir.be_invite_member_id `被邀请人会员ID`,
+		tir.be_invite_mobile `被邀请人手机号`,
+		tir.reserve_time `留资时间`,
+		tir.vehicle_name `留资车型`,
+		tir.drive_time `实际试驾时间`
+	from ods_invi.ods_invi_tm_invite_record_d tir 
+	left join ods_memb.ods_memb_tc_member_info_cur m on toString(tir.invite_member_id)=toString(m.id)  
+	join (
+		select distinct distinct_id
+		from ods_rawd.ods_rawd_events_d_di a
+		where 1=1
+		and a.`date` = '2024-02-25'
+		and distinct_id not like '%#%'
+		and length(a.distinct_id)<9
+		and event = 'Page_entry'
+		and page_title='2月会员日'
+		and activity_name='2024年2月会员日'
+		and (($lib in('iOS','Android') and left($app_version,1)='5') or $lib ='MiniProgram' or  channel in ('Mini', 'App') )
+	)x on toString(x.distinct_id) =toString(m.cust_id) 
+	where tir.is_deleted=0
+	and date(tir.create_time)= '2024-02-25'
+	and tir.be_invite_member_id is not null 
+)x
+
+-- 邀请试驾到店量 次月统计
+select 
+count(case when x.drive_time>='2000-01-01' then 1 else null end)`邀请试驾-到店试驾量`
+from 
+	(
+	SELECT  
+	distinct 
+		tir.invite_code as invite_code,
+		tir.invite_member_id `邀请人会员ID`,
+		m.member_phone `邀请人手机号`,
+		tir.create_time `邀约时间`,
+		tir.be_invite_member_id `被邀请人会员ID`,
+		tir.be_invite_mobile `被邀请人手机号`,
+		tir.reserve_time `留资时间`,
+		tir.vehicle_name `留资车型`,
+		tir.drive_time  drive_time
+	from ods_invi.ods_invi_tm_invite_record_d tir 
+	left join ods_memb.ods_memb_tc_member_info_cur m on toString(tir.invite_member_id)=toString(m.id)  
+	join (
+		select distinct distinct_id
+		from ods_rawd.ods_rawd_events_d_di a
+		where 1=1
+		and a.`date` = '2024-01-25'
+		and distinct_id not like '%#%'
+		and length(a.distinct_id)<9
+		and event = 'Page_entry'
+		and page_title='1月会员日'
+		and activity_name='2024年1月会员日'
+		and (($lib in('iOS','Android') and left($app_version,1)='5') or $lib ='MiniProgram' or  channel in ('Mini', 'App') )
+	)x on toString(x.distinct_id) =toString(m.cust_id) 
+	where tir.is_deleted=0
+	and date(tir.create_time)='2024-01-25'
+	and date(tir.create_time)<'2024-02-25'
+	and tir.be_invite_member_id is not null 
+)x
+
+-- 预约试驾
+	SELECT
+	count(m.member_phone) `预约试驾累计线索量`,
+	count(case when m.is_vehicle =1 then m.member_phone else null end) `车主预约试驾累计线索量`,
+	count(case when m.is_vehicle =0 then m.member_phone else null end) `粉丝预约试驾累计线索量`
+	FROM ods_cyap.ods_cyap_tt_appointment_d ta
+	left join ods_memb.ods_memb_tc_member_info_cur m on toString(ta.ONE_ID)=toString(m.cust_id) 
+	join (
+		select distinct distinct_id
+		from ods_rawd.ods_rawd_events_d_di a
+		where 1=1
+		and a.`date` = '2024-02-25'
+		and distinct_id not like '%#%'
+		and length(a.distinct_id)<9
+		and event = 'Page_entry'
+		and page_title='2月会员日'
+		and activity_name='2024年2月会员日'
+		and (($lib in('iOS','Android') and left($app_version,1)='5') or $lib ='MiniProgram' or  channel in ('Mini', 'App') )
+		)x on toString(x.distinct_id) =toString(m.cust_id) 
+	WHERE 1=1
+	and date(ta.CREATED_AT) = '2024-02-25'
+	AND ta.APPOINTMENT_TYPE = 70691002     -- 预约试乘试驾
+	AND ta.DATA_SOURCE = 'C'   -- 数据来源B端C端	
+	
+--预约试驾累计到店量 次月统计
+	SELECT
+	count(m.member_phone) `预约试驾活动留资量`,
+	count(distinct m.member_phone) `预约试驾活动线索（去重）`,
+	count(case when ta.ARRIVAL_DATE>='2000-01-01' then 1 else null end)`预约试驾-活动到店试驾量`,
+	count(case when ta.ARRIVAL_DATE>='2000-01-01' and m.is_vehicle =1 then 1 else null end)`预约试驾-车主到店`,
+	count(case when ta.ARRIVAL_DATE>='2000-01-01' and m.is_vehicle =0 then 1 else null end)`预约试驾-粉丝到店`
+	FROM ods_cyap.ods_cyap_tt_appointment_d ta
+	left join ods_memb.ods_memb_tc_member_info_cur m on toString(ta.ONE_ID)=toString(m.cust_id) 
+	join (
+		select distinct distinct_id
+		from ods_rawd.ods_rawd_events_d_di a
+		where 1=1
+		and a.`date` = '2024-01-25'
+		and distinct_id not like '%#%'
+		and length(a.distinct_id)<9
+		and event = 'Page_entry'
+		and page_title='1月会员日'
+		and activity_name='2024年1月会员日'
+		and (($lib in('iOS','Android') and left($app_version,1)='5') or $lib ='MiniProgram' or  channel in ('Mini', 'App') )
+		)x on toString(x.distinct_id) =toString(m.cust_id) 
+	WHERE 1=1
+	and date(ta.CREATED_AT) = '2024-01-25'
+	AND ta.APPOINTMENT_TYPE = 70691002     -- 预约试乘试驾
+	AND ta.DATA_SOURCE = 'C'   -- 数据来源B端C端	
+	
+	
+-- 养修预约
+	select 
+	count(tam.APPOINTMENT_ID)
+	from ods_cyap.ods_cyap_tt_appointment_d ta
+	left join ods_cyap.ods_cyap_tt_appointment_maintain_d tam on tam.APPOINTMENT_ID =ta.APPOINTMENT_ID 
+	left join ods_orga.ods_orga_tm_company_cur tc2 on tc2.company_code =ta.OWNER_CODE 
+	left JOIN ods_dict.ods_dict_tc_code_d tc on tc.CODE_ID =tam.MAINTAIN_STATUS 
+	left join 
+		(select tmi.id
+		,tmi.cust_id
+		,row_number()over(partition by tmi.cust_id order by tmi.create_time desc) rk 
+		from ods_memb.ods_memb_tc_member_info_cur tmi
+		where tmi.tmi.is_deleted =0
+		Settings allow_experimental_window_functions = 1
+		)tmi on ta.ONE_ID = tmi.cust_id 
+	join (
+			select distinct distinct_id
+			from ods_rawd.ods_rawd_events_d_di a
+			where 1=1
+			and a.`date` = '2024-02-25'
+			and distinct_id not like '%#%'
+			and length(a.distinct_id)<9
+			and event = 'Page_entry'
+			and page_title='2月会员日'
+			and activity_name='2024年2月会员日'
+			and (($lib in('iOS','Android') and left($app_version,1)='5') or $lib ='MiniProgram' or  channel in ('Mini', 'App') )
+		)x on toString(x.distinct_id) =toString(ta.ONE_ID) 
+	where 1=1
+	and tam.IS_DELETED <>1
+	and date(ta.CREATED_AT)= '2024-02-25'
+	and ta.DATA_SOURCE ='C'
+	and ta.APPOINTMENT_TYPE =70691005
+	and tmi.rk =1
+--	and tc.CODE_CN_DESC in ('提前进厂','准时进厂','延迟进厂','待评价','已评价') -- 进厂
+	
+--养修预约到店 次月统计
+	select 
+	count(case when tc.CODE_CN_DESC in ('提前进厂','准时进厂','延迟进厂','待评价','已评价') then 1 else null end )`养修预约活动提交实际到店量`
+	from ods_cyap.ods_cyap_tt_appointment_d ta
+	left join ods_cyap.ods_cyap_tt_appointment_maintain_d tam on tam.APPOINTMENT_ID =ta.APPOINTMENT_ID 
+	left join ods_orga.ods_orga_tm_company_cur tc2 on tc2.company_code =ta.OWNER_CODE 
+	left JOIN ods_dict.ods_dict_tc_code_d tc on tc.CODE_ID =tam.MAINTAIN_STATUS 
+	left join 
+		(select tmi.id
+		,tmi.cust_id
+		,row_number()over(partition by tmi.cust_id order by tmi.create_time desc) rk 
+		from ods_memb.ods_memb_tc_member_info_cur tmi
+		where tmi.tmi.is_deleted =0
+		Settings allow_experimental_window_functions = 1
+		)tmi on ta.ONE_ID = tmi.cust_id 
+	join (
+			select distinct distinct_id
+			from ods_rawd.ods_rawd_events_d_di a
+			where 1=1
+			and a.`date` = '2024-01-25'
+			and distinct_id not like '%#%'
+			and length(a.distinct_id)<9
+			and event = 'Page_entry'
+			and page_title='1月会员日'
+			and activity_name='2024年1月会员日'
+			and (($lib in('iOS','Android') and left($app_version,1)='5') or $lib ='MiniProgram' or  channel in ('Mini', 'App') )
+		)x on toString(x.distinct_id) =toString(ta.ONE_ID) 
+	where 1=1
+	and tam.IS_DELETED <>1
+	and date(ta.CREATED_AT)= '2024-01-25'
+	and ta.DATA_SOURCE ='C'
+	and ta.APPOINTMENT_TYPE =70691005
+	and tmi.rk =1
+--	and tc.CODE_CN_DESC in ('提前进厂','准时进厂','延迟进厂','待评价','已评价') -- 进厂
+
+-- 活动GMV
+select 
+--distinct m.fl
+SUM(case when m.fl='精品' then m.`总金额` else null end) `精品（元）`,
+SUM(case when m.fl='售后养护' then m.`总金额` else null end) `售后（元）`,
+SUM(case when m.fl='充电专区' then m.`总金额` else null end) `充电（元）`,
+SUM(case when m.fl='生活服务' then m.`总金额` else null end) `第三方（元）`,
+SUM(case when m.fl='精品' then m.`现金支付金额` else null end)/SUM(case when m.fl='精品' then m.`总金额` else null end)`现金支付金额精品比例`,
+SUM(case when m.fl='售后养护' then m.`现金支付金额` else null end)/SUM(case when m.fl='售后养护' then m.`总金额` else null end)`现金支付金额售后比例`,
+SUM(case when m.fl='充电专区' then m.`现金支付金额` else null end)/SUM(case when m.fl='充电专区' then m.`总金额` else null end)`现金支付充电比例`
+--,SUM(case when m.fl='充电专区' then m.`现金支付金额` else null end)
+--,SUM(case when m.fl='充电专区' then m.`总金额` else null end)
+from 
+	(select a.order_code `订单编号`
+	,b.product_id `商城兑换id`
+	,a.user_id `会员id`
+	,a.user_name `会员姓名`
+--	,x.distinct_id
+	,b.spu_name `兑换商品`
+	,b.spu_id
+	,b.sku_id
+	,b.spu_bus_id
+	,b.sku_code
+	,b.sku_real_point `商品单价`
+	,ifnull(ifnull(f2.fl,case when f.name in('售后养护','充电专区','精品','生活服务') then f.name else null end)
+	,CASE WHEN b.spu_type =51121001 THEN '精品'
+		WHEN b.spu_type =51121002 THEN '生活服务' --第三方卡券`
+		WHEN b.spu_type =51121003 THEN '售后养护' --保养类卡券
+		WHEN b.spu_type =51121004 THEN '精品'
+		WHEN b.spu_type =51121006 THEN '一件代发'
+		WHEN b.spu_type =51121007 THEN '经销商端产品'
+		WHEN b.spu_type =51121008 THEN '售后养护'   -- '车辆权益'
+		ELSE null end) `fl`
+,CASE b.spu_type
+		WHEN 51121001 THEN '沃尔沃精品' 
+		WHEN 51121002 THEN '第三方卡券' 
+		WHEN 51121003 THEN '虚拟服务卡券' 
+		WHEN 51121004 THEN '非沃尔沃精品'    -- 还会新增一个子分类
+		WHEN 51121006 THEN '一件代发'
+		WHEN 51121007 THEN '经销商端产品'
+	    WHEN 51121008 THEN '虚拟服务权益'
+	    ELSE null end `商品类型`
+	,b.fee/100 `总金额`
+	,b.coupon_fee/100 `优惠券抵扣金额`
+	,round(b.point_amount/3+b.pay_fee/100,2) `实付金额`
+	,b.pay_fee/100 `现金支付金额`
+	,b.point_amount `支付V值`
+	,b.sku_num `兑换数量`
+	,a.create_time as tt
+	,case 
+		when b.pay_fee=0 then '纯V值支付'
+		when b.point_amount=0 then '纯现金支付' else '混合支付' end `支付方式`
+	,f.name `分类`
+	,CASE b.spu_type 
+		WHEN 51121001 THEN 'VOLVO仓商品'
+		WHEN 51121002 THEN 'VOLVO仓第三方卡券'
+		WHEN 51121003 THEN '虚拟服务卡券'
+		WHEN 51121004 THEN '京东仓商品' ELSE NULL END AS `仓库`
+	,CASE b.status
+			WHEN 51301001 THEN '待付款'
+			WHEN 51301002 THEN '待发货'
+			WHEN 51301003 THEN '待收货'
+			WHEN 51301004 THEN '收货确认'
+			WHEN 51301005 THEN '退货中'
+			WHEN 51301006 THEN '交易关闭' 
+	END AS `商品状态`
+	,CASE a.status
+			WHEN 51031002 THEN '待付款'
+			WHEN 51031003 THEN '待发货' 
+			WHEN 51031004 THEN '待收货' 
+			WHEN 51031005 THEN '已完成'
+			WHEN 51031006 THEN '已关闭'  
+	END AS `订单状态`
+	,CASE a.close_reason 
+	WHEN 51091003 THEN '用户退款' 
+	WHEN 51091004 THEN '用户退货退款' 
+	WHEN 51091005 THEN '商家退款' END AS `关闭原因`
+	,e.`退货状态` `退货状态`
+	,e.`退货数量` `退货数量`
+	,e.`退回V值` `退回V值`
+	,e.`退回时间` `退回时间`
+	from ods_orde.ods_orde_tt_order_d a  -- 订单主表
+	left join ods_orde.ods_orde_tt_order_product_d  b on a.order_code = b.order_code  -- 订单商品表
+	left join (
+		-- 清洗cust_id
+		select m.*
+		from 
+			(-- 清洗cust_id
+			select m.*,
+			row_number() over(partition by m.cust_id order by m.create_time desc) rk
+			from ods_memb.ods_memb_tc_member_info_cur m
+			where m.member_status<>'60341003' and m.is_deleted=0
+			and m.cust_id is not null 
+			Settings allow_experimental_window_functions = 1
+			) m
+		where m.rk=1) h on toString(a.user_id) = toString(h.id)   -- 会员表(获取会员信息)
+	join (
+			select distinct distinct_id
+			from ods_rawd.ods_rawd_events_d_di a
+			where 1=1
+			and a.`date` = '2024-02-25'
+			and distinct_id not like '%#%'
+			and length(a.distinct_id)<9
+			and event = 'Page_entry'
+			and page_title='2月会员日'
+			and activity_name='2024年2月会员日'
+			and (($lib in('iOS','Android') and left($app_version,1)='5') or $lib ='MiniProgram' or  channel in ('Mini', 'App') )
+		)x on toString(x.distinct_id) =toString(h.cust_id) 
+	left join ods_good.ods_good_item_spu_d j on b.spu_id = j.id   -- 前台spu表(获取商品前台专区ID)
+	left join ods_good.ods_good_front_category_d f on f.id=j.front_category_id -- 前台专区列表(获取前天专区名称)
+	left join
+	(
+		-- 获取前台分类[充电专区]的商品 
+		select distinct j.id as spu_id ,
+		j.name,
+		f2.name as fl
+		from ods_good.ods_good_item_spu_d j
+		left join ods_good.ods_good_item_sku_d i on j.id =i.spu_id 
+		left join ods_good.ods_good_item_sku_channel_d s on i.id =s.sku_id 
+		left join ods_good.ods_good_front_category_d f2 on s.front_category1_id=f2.id
+		where 1=1
+		and f2.name='充电专区'
+--		and j.is_deleted ='0' -- 该表该字段全为空
+--		and i.is_deleted ='0' -- 该表该字段全为空
+		and s.is_deleted ='0'
+		and f2.is_deleted ='0'
+	)f2 on f2.spu_id=b.spu_id
+	left join(
+	--	#V值退款成功记录
+		select so.order_code
+		,sp.product_id
+		,CASE 
+			WHEN so.status ='51171001' THEN '待审核'
+			WHEN so.status ='51171002' THEN '待退货入库'
+			WHEN so.status ='51171003' THEN '待退款'
+			WHEN so.status ='51171004' THEN '退款成功'
+			WHEN so.status ='51171005' THEN '退款失败'
+			WHEN so.status ='51171006' THEN '作废退货单' END as `退货状态`
+		,sum(sp.sales_return_num) `退货数量`
+		,sum(so.refund_point) `退回V值`
+		,max(so.create_time) `退回时间`
+		from ods_orde.ods_orde_tt_sales_return_order_d so
+		left join ods_orde.ods_orde_tt_sales_return_order_product_d sp on so.refund_order_code=sp.refund_order_code 
+		where so.is_deleted = 0 
+		and so.status='51171004' -- 退款成功
+		and sp.is_deleted=0
+		GROUP BY order_code,product_id,`退货状态`
+	) e on a.order_code = e.order_code and b.product_id =e.product_id 
+	where 1=1
+	and toDate(a.create_time) = '2024-02-25' 
+	and a.is_deleted <> 1  -- 剔除逻辑删除订单
+	and b.is_deleted <> 1
+--	and h.is_deleted <> 1
+--	and j.front_category_id is not null
+	and a.type = 31011003  -- 筛选沃世界商城订单
+	and a.separate_status = 10041002 -- 选择拆单状态否
+	and a.status  NOT IN (51031001,51031007) -- 去除预创建和创建失败订单
+	AND (a.close_reason NOT IN (51091001,51091002) OR a.close_reason IS NULL ) -- 去除超时未支付和取消订单
+--	and (b.spu_type in (51121001,51121004,51121006,51121007) or (b.spu_type in (51121002,51121003) and a.status<>51031006 )) -- 剔除虚拟商品已关闭订单
+--	and e.order_code is null  -- 剔除退款订单
+	order by a.create_time) m
+
+	
+
+————————————————————————————————————————————————————————————————————————————整体数据——————————————————————————————————————————————————————————————————————————————————————————
+
+-- APP当日启动量
+SELECT
+count(1)
+from ods_rawd.ods_rawd_events_d_di
+where 1=1
+and `date` = '2024-02-25'
+and event= '$AppStart'
+and (($lib in('iOS','Android') and left($app_version,1)='5') or  channel='App')
+
+-- APP当日下载量
+SELECT
+count(1)
+from ads_crm.ads_crm_events_member_d m
+where 1=1
+and date(min_app_time) = '2024-02-25'
+
+-- APP总用户数
+select count(1)
+from ads_crm.ads_crm_events_member_d m
+where 1=1
+and min_app_time is not null  -- 筛选app用户
+and date(min_app_time)<= '2024-02-25'
+
+--APP总车主数
+select count(1)
+from ads_crm.ads_crm_events_member_d m
+where 1=1
+and min_app_time is not null -- 筛选app用户
+and date(min_app_time)<= '2024-02-25'
+and is_owner =1 -- 筛选车主
+
+--活动当日APP日活
+SELECT
+count(distinct user_id)
+from ods_rawd.ods_rawd_events_d_di
+where 1=1
+and `date` = '2024-02-25'
+and event= '$AppStart'
+and (($lib in('iOS','Android') and left($app_version,1)='5') or  channel='App')
+
+--当月APP月活
+SELECT
+count(distinct user_id)
+from ods_rawd.ods_rawd_events_d_di
+where 1=1
+and `date`>= '2024-02-01'
+and `date`< '2024-03-01'
+and event= '$AppStart'
+and (($lib in('iOS','Android') and left($app_version,1)='5') or  channel='App')
+
+--活动pv、uv、车主数
+select 
+	count(user_id) as "双端pv",
+	count(distinct user_id) as "双端uv",
+	count(distinct case when (($lib in('iOS','Android') and left($app_version,1)='5') or channel='App') then user_id end) as "App_uv",
+	count(distinct case when ($lib ='MiniProgram' or  channel='Mini') then user_id end) as "Mini_uv",
+	count(distinct case when is_bind =1 then user_id end) as "双端车主数",
+	count(distinct case when (($lib in('iOS','Android') and left($app_version,1)='5') or channel='App') and is_bind =1 then user_id end) as "App车主数",
+	count(distinct case when ($lib ='MiniProgram' or  channel='Mini') and is_bind =1 then user_id end) as "Mini车主数"
+from ods_rawd.ods_rawd_events_d_di
+where 1=1
+and `date` = '2024-02-25'
+and event='Page_entry'
+and page_title ='2月会员日'
+and activity_name = '2024年2月会员日'
+and (($lib in('iOS','Android') and left($app_version,1)='5') or $lib ='MiniProgram' or  channel in ('Mini', 'App'))
+
+		
+-- 拉新人数（App/Mini注册会员）
+select 
+count(distinct a.user_id) "双端拉新",
+count(distinct case when a.channel='App' then a.user_id end) "App拉新",
+count(distinct case when a.channel='Mini' then a.user_id end) "Mini拉新",
+count(distinct case when a.is_bind =1 then a.user_id end) "双端拉新车主",
+count(distinct case when a.channel='App' and a.is_bind =1 then a.user_id end) "App拉新车主",
+count(distinct case when a.channel='Mini' and a.is_bind =1 then a.user_id end) "Mini拉新车主"
+from
+(-- 访问过活动的用户-App/Mini
+	select 
+		a.user_id,distinct_id,`time`,is_bind,
+		case 
+			when (($lib in('iOS','Android') and left($app_version,1)='5') or channel = 'App') then 'App'
+			when ($lib ='MiniProgram' or  channel ='Mini') then 'Mini'
+		end as channel
+	from ods_rawd.ods_rawd_events_d_di a
+	where 1=1
+	--and event='Page_entry'
+	and length(distinct_id)<9 
+	and date = '2024-02-25'
+	and page_title ='2月会员日'
+	and activity_name = '2024年2月会员日'
+	and (($lib in('iOS','Android') and left($app_version,1)='5') or $lib ='MiniProgram' or  channel in ('Mini', 'App') )--双端
+	--and (($lib in('iOS','Android') and left($app_version,1)='5') or channel = 'App') --App
+	--and ($lib ='MiniProgram' or  channel ='Mini')--Mini
+)a 
+join
+(-- 注册会员
+	select distinct m.cust_id,m.create_time
+	from ods_memb.ods_memb_tc_member_info_cur m 
+	where 1=1
+	and m.is_deleted =0 
+	and date(m.create_time) = '2024-02-25'
+)b 
+on a.distinct_id=b.cust_id::varchar
+where 1=1
+and abs(date_diff(second,toDateTime(a.time),toDateTime(b.create_time)))<=600
+
+
+--激活人数
+SELECT 
+	count(distinct a.distinct_id) as "双端激活",
+	count(distinct case when a.channel='App' then a.distinct_id end) as "App激活",
+	count(distinct case when a.channel='Mini' then a.distinct_id end) as "Mini激活",
+	count(distinct case when a.is_bind=1 then a.distinct_id end) as "双端车主激活",
+	count(distinct case when a.channel='App' and a.is_bind=1 then a.distinct_id end) as "App车主激活",
+	count(distinct case when a.channel='Mini' and a.is_bind=1 then a.distinct_id end) as "Mini车主激活"
+--	a.`date` d0,a.distinct_id u0,b.d1,b.u1,b.d2,b.u2,c.cust_id,date_diff(day,b.d2, b.d1)
+	from (
+	--访问活动页的日期和用户ID
+	select 
+		a.date,a.distinct_id, 
+		case
+			when (($lib in('iOS','Android') and left($app_version,1)='5') or channel = 'App') then 'App'
+			when ($lib ='MiniProgram' or  channel ='Mini') then 'Mini'
+		end as channel,
+		case when sum(a.is_bind)>0 then 1 else 0 end as is_bind
+	from ods_rawd.ods_rawd_events_d_di a
+	where 1=1
+	and (($lib in('iOS','Android') and left($app_version,1)='5') or $lib ='MiniProgram' or  channel in ('Mini', 'App'))
+	and page_title ='2月会员日'
+	and activity_name = '2024年2月会员日'
+	and length(distinct_id)<9 
+	and date='2024-02-25'
+	group by date,a.distinct_id,channel
+	order by a.`date` ,a.distinct_id
+) a
+	left join (
+	--访问日期及上次访问日期&日期差
+	SELECT level2_1.distinct_id u1,level2_1.date as d1,level2_1.rk rk1,level2_2.distinct_id u2,level2_2.date as d2,level2_2.rk rk2
+		from (
+		SELECT level1.date,level1.distinct_id,row_number() over(partition by level1.distinct_id order by level1.date desc) as rk
+			from (
+			select date,a.distinct_id
+			from ods_rawd.ods_rawd_events_d_di a
+			where 1=1
+			and (($lib in('iOS','Android') and left($app_version,1)='5') or $lib ='MiniProgram' or  channel in ('Mini', 'App') )
+			and length(distinct_id)<9 
+			and date>=date_sub(date('2024-02-25'),31)
+			and date<='2024-02-25'
+			group by date,a.distinct_id
+			order by a.`date` ,a.distinct_id
+			) level1
+		Settings allow_experimental_window_functions = 1
+		) level2_1
+		left join (
+		SELECT level1.date,level1.distinct_id,row_number() over(partition by level1.distinct_id order by level1.date desc) as rk
+			from (
+			select date,a.distinct_id
+			from ods_rawd.ods_rawd_events_d_di a
+			where 1=1
+			and (($lib in('iOS','Android') and left($app_version,1)='5') or $lib ='MiniProgram' or  channel in ('Mini', 'App') )
+			and length(distinct_id)<9 
+			and date>=date_sub(date('2024-02-25'),31)
+			and date<='2024-02-25'
+			group by date,a.distinct_id
+			order by a.`date` ,a.distinct_id
+			) level1
+		Settings allow_experimental_window_functions = 1
+		) level2_2
+	on level2_2.distinct_id=level2_1.distinct_id and cast(level2_2.rk-1 as int)=cast(level2_1.rk as int)
+) b
+on b.u1=a.distinct_id and b.d1=a.`date` 
+	left join (
+	--会员表识别是否为新用户
+	select m.cust_id,min(m.create_time) mtime
+	from ods_memb.ods_memb_tc_member_info_cur m 
+	where m.member_status <> '60341003' and m.is_deleted =0 
+	and date(m.create_time) = '2024-02-25'
+	group by m.cust_id
+) c 
+on c.cust_id::varchar = a.distinct_id
+where 1=1
+and date_diff(day,b.d2, b.d1)>=30
+--and (date_diff(day,b.d2, b.d1)>=30 or b.u2 is null)
+and c.cust_id is null
+
+--留存流失用户  /车主 注意更改注释
+SELECT 
+	count(case when current_month.distinct_id is null then last_month.distinct_id end) as `流失用户数`
+from (
+		--上月活跃用户id
+		SELECT
+			distinct distinct_id 
+		from ods_rawd.ods_rawd_events_d_di
+		where 1=1
+		and `date` = '2024-01-25'
+		and event= 'Page_entry'
+		and (($lib in('iOS','Android') and left($app_version,1)='5') or $lib ='MiniProgram' or  channel in ('Mini', 'App'))
+		and page_title ='1月会员日'
+		and activity_name = '2024年1月会员日'
+--		and is_bind=1  -- 车主
+		and length(distinct_id)<9 
+	) last_month
+left join (
+		--本月活跃用户id
+		SELECT
+			distinct distinct_id 
+		from ods_rawd.ods_rawd_events_d_di
+		where 1=1
+		and `date` = '2024-02-25'
+		and event= 'Page_entry'
+		and (($lib in('iOS','Android') and left($app_version,1)='5') or $lib ='MiniProgram' or  channel in ('Mini', 'App'))
+		and page_title ='2月会员日'
+		and activity_name = '2024年2月会员日'
+--		and is_bind=1  -- 车主
+		and length(distinct_id)<9 
+) current_month on current_month.distinct_id=last_month.distinct_id
+
+--APP活动订阅人数
+	select count(distinct distinct_id)
+	from ods_rawd.ods_rawd_events_d_di a
+	where 1=1
+	and event='Button_click'
+	and length(distinct_id)<9 
+	and date = '2024-02-25'
+	and page_title ='2月会员日'
+	and activity_name = '2024年2月会员日'
+	and btn_name ='订阅活动'
+--	and (($lib in('iOS','Android') and left($app_version,1)='5') or $lib ='MiniProgram' or  channel in ('Mini', 'App') )--双端
+	and (($lib in('iOS','Android') and left($app_version,1)='5') or channel = 'App') --App
+--	and ($lib ='MiniProgram' or  channel ='Mini')--Mini
+
+--活跃车主UV
+select 
+count(distinct user_id) UV
+from ods_rawd.ods_rawd_events_d_di a
+--join ads_crm.ads_crm_events_member_d m on a.distinct_id =m.distinct_id 
+where 1=1
+and a.`date` = '2024-02-25'
+and length(a.distinct_id)<9
+and event = 'Page_entry'
+and page_title='2月会员日'
+and activity_name='2024年2月会员日'
+and is_bind=1
+and (($lib in('iOS','Android') and left($app_version,1)='5') or $lib ='MiniProgram' or  channel in ('Mini', 'App') )
+
+	
+--参与度-活动
+select 
+--	count(case when m_level.level_id in (1) then ac_join.distinct_id end) as `银卡活跃用户数`,
+	count(case when m_level.level_id in (1) then ac_join.distinct_id end)/count(ac_join.distinct_id) as "银卡参与占比",
+--	count(case when m_level.level_id in (2,3,4) then ac_join.distinct_id end) as `金卡及以上活跃用户数`,
+	count(case when m_level.level_id in (2,3,4) then ac_join.distinct_id end)/count(ac_join.distinct_id) as "金卡及以上参与占比"
+from (
+	--上月活跃用户id
+	SELECT
+		distinct distinct_id 
+	from ods_rawd.ods_rawd_events_d_di
+	where 1=1
+	and `date` = '2024-02-25'
+	and event= 'Page_entry'
+	and (($lib in('iOS','Android') and left($app_version,1)='5') or $lib ='MiniProgram' or  channel in ('Mini', 'App'))
+	and page_title ='2月会员日'
+	and activity_name = '2024年2月会员日'
+	and length(distinct_id)<9 
+) ac_join
+	inner join (
+	-- 清洗cust_id
+	select a.cust_id ,a.level_id,a.rk
+	from (
+		select 
+			 m.cust_id ,m.level_id,
+			 row_number() over(partition by m.cust_id order by m.create_time desc) rk
+		from ods_memb.ods_memb_tc_member_info_cur m
+		where m.member_status<>'60341003' and m.is_deleted=0
+		and m.cust_id is not null 
+		Settings allow_experimental_window_functions = 1
+		) a 
+		where a.rk=1
+) m_level
+on m_level.cust_id::varchar = ac_join.distinct_id
+
+--参与度-整体占比
+select
+	count(case when m_level.level_id =1 then m_level.cust_id end)/count(m_level.cust_id ) "App银卡整体占比",
+	count(case when m_level.level_id in (2,3,4) then m_level.cust_id end)/count(m_level.cust_id ) "App金卡及整体占比"
+	from (
+	-- 清洗cust_id
+	select a.cust_id ,a.level_id,a.rk
+	from (
+		select 
+			 m.cust_id ,m.level_id,
+			 row_number() over(partition by m.cust_id order by m.create_time desc) rk
+		from ods_memb.ods_memb_tc_member_info_cur m
+		where m.member_status<>'60341003' and m.is_deleted=0
+		and m.cust_id is not null 
+		Settings allow_experimental_window_functions = 1
+		) a 
+		where a.rk=1
+)m_level
+ 
+-- 邀请试驾线索量 会员日当天
+SELECT 
+count(tir.be_invite_mobile)`邀请试驾活动留资量`,
+count(distinct tir.be_invite_mobile)`邀请试驾活动线索（去重）`,
+count(case when tir.drive_time>='2000-01-01' then 1 else null end)`邀请试驾-到店试驾量`
+from ods_invi.ods_invi_tm_invite_record_d tir 
+left join ods_memb.ods_memb_tc_member_info_cur m on toString(tir.invite_member_id)=toString(m.id)  
+join (
+	select distinct distinct_id
+	from ods_rawd.ods_rawd_events_d_di a
+	where 1=1
+	and a.`date` = '2024-02-25'
+	and distinct_id not like '%#%'
+	and length(a.distinct_id)<9
+	and event = 'Page_entry'
+	and page_title='2月会员日'
+	and activity_name='2024年2月会员日'
+	and (($lib in('iOS','Android') and left($app_version,1)='5') or $lib ='MiniProgram' or  channel in ('Mini', 'App') )
+)x on toString(x.distinct_id) =toString(m.cust_id) 
+where tir.is_deleted=0
+and date(tir.create_time)= '2024-02-25'
+and tir.be_invite_member_id is not null 
+
+
+-- 邀请试驾线索量 当月
+SELECT 
+count(tir.be_invite_mobile)`邀请试驾留资量`,
+--count(distinct tir.be_invite_mobile)`邀请试驾线索（去重）`,
+count(case when tir.drive_time>='2000-01-01' then 1 else null end)`邀请试驾-到店试驾量`
+--	tic.code `邀约code` ,
+--	tic.member_id `邀请人会员ID`,
+--	tic.create_time `邀约时间`,
+--	tir.be_invite_member_id `被邀请人会员ID`,
+--	tir.be_invite_mobile `被邀请人手机号`,
+--	tir.drive_time,
+--	tir.reserve_time `留资时间`
+FROM ods_invi.ods_invi_tm_invite_code_d tic 
+left join ods_invi.ods_invi_tm_invite_record_d tir on tir.invite_code = tic.code 
+left join ods_memb.ods_memb_tc_member_info_cur m on toString(tic.member_id)=toString(m.id)  
+where 1=1
+and month(tic.create_time) = 1
+and tir.is_deleted =0
+
+-- 预约试驾 会员日当天
+	SELECT
+	count(m.member_phone) `预约试驾活动留资量`,
+	count(distinct m.member_phone) `预约试驾活动线索（去重）`,
+	count(case when ta.ARRIVAL_DATE>='2000-01-01' then 1 else null end)`预约试驾-活动到店试驾量`
+	FROM ods_cyap.ods_cyap_tt_appointment_d ta
+	left join ods_memb.ods_memb_tc_member_info_cur m on toString(ta.ONE_ID)=toString(m.cust_id) 
+	join (
+		select distinct distinct_id
+		from ods_rawd.ods_rawd_events_d_di a
+		where 1=1
+		and a.`date` = '2024-02-25'
+		and distinct_id not like '%#%'
+		and length(a.distinct_id)<9
+		and event = 'Page_entry'
+		and page_title='2月会员日'
+		and activity_name='2024年2月会员日'
+		and (($lib in('iOS','Android') and left($app_version,1)='5') or $lib ='MiniProgram' or  channel in ('Mini', 'App') )
+		)x on toString(x.distinct_id) =toString(m.cust_id) 
+	WHERE 1=1
+	and date(ta.CREATED_AT) = '2024-02-25'
+	AND ta.APPOINTMENT_TYPE = 70691002     -- 预约试乘试驾
+	AND ta.DATA_SOURCE = 'C'   -- 数据来源B端C端
+
+-- 预约试驾 当月
+	SELECT
+	count(m.member_phone) `预约试驾活动留资量`,
+--	count(distinct m.member_phone) `预约试驾活动线索（去重）`,
+	count(case when ta.ARRIVAL_DATE>='2000-01-01' then 1 else null end)`预约试驾-活动到店试驾量`
+	FROM ods_cyap.ods_cyap_tt_appointment_d ta
+	left join ods_memb.ods_memb_tc_member_info_cur m on toString(ta.ONE_ID)=toString(m.cust_id) 
+	WHERE 1=1
+	and month(ta.CREATED_AT) = '1'
+	AND ta.APPOINTMENT_TYPE = 70691002     -- 预约试乘试驾
+	AND ta.DATA_SOURCE = 'C'   -- 数据来源B端C端
+
+-- 养修预约 会员日当天
+	select 
+	count(tam.WORK_ORDER_NUMBER) `养修预约工单活动提交量`,
+	count(case when tc.CODE_CN_DESC in ('提前进厂','准时进厂','延迟进厂','待评价','已评价') then 1 else null end )`养修预约活动提交实际到店量`
+	from ods_cyap.ods_cyap_tt_appointment_d ta
+	left join ods_cyap.ods_cyap_tt_appointment_maintain_d tam on tam.APPOINTMENT_ID =ta.APPOINTMENT_ID 
+	left join ods_orga.ods_orga_tm_company_cur tc2 on tc2.company_code =ta.OWNER_CODE 
+	left JOIN ods_dict.ods_dict_tc_code_d tc on tc.CODE_ID =tam.MAINTAIN_STATUS 
+	left join 
+		(select tmi.id
+		,tmi.cust_id
+		,row_number()over(partition by tmi.cust_id order by tmi.create_time desc) rk 
+		from ods_memb.ods_memb_tc_member_info_cur tmi
+		where tmi.tmi.is_deleted =0
+		Settings allow_experimental_window_functions = 1
+		)tmi on ta.ONE_ID = tmi.cust_id 
+	join (
+			select distinct distinct_id
+			from ods_rawd.ods_rawd_events_d_di a
+			where 1=1
+			and a.`date` = '2024-02-25'
+			and distinct_id not like '%#%'
+			and length(a.distinct_id)<9
+			and event = 'Page_entry'
+			and page_title='2月会员日'
+			and activity_name='2024年2月会员日'
+			and (($lib in('iOS','Android') and left($app_version,1)='5') or $lib ='MiniProgram' or  channel in ('Mini', 'App') )
+		)x on toString(x.distinct_id) =toString(ta.ONE_ID) 
+	where 1=1
+	and tam.IS_DELETED <>1
+	and date(ta.CREATED_AT)= '2024-02-25'
+	and ta.DATA_SOURCE ='C'
+	and ta.APPOINTMENT_TYPE =70691005
+	and tmi.rk =1
+--	and tc.CODE_CN_DESC in ('提前进厂','准时进厂','延迟进厂','待评价','已评价') -- 进厂
+
+-- 养修预约 当月
+	select 
+	count(tam.APPOINTMENT_ID) `养修预约工单活动提交量`,
+	count(case when tc.CODE_CN_DESC in ('提前进厂','准时进厂','延迟进厂','待评价','已评价') then 1 else null end )`养修预约活动提交实际到店量`
+	from ods_cyap.ods_cyap_tt_appointment_d ta
+	left join ods_cyap.ods_cyap_tt_appointment_maintain_d tam on tam.APPOINTMENT_ID =ta.APPOINTMENT_ID 
+	left join ods_orga.ods_orga_tm_company_cur tc2 on tc2.company_code =ta.OWNER_CODE 
+	left JOIN ods_dict.ods_dict_tc_code_d tc on tc.CODE_ID =tam.MAINTAIN_STATUS 
+	left join ods_memb.ods_memb_tc_member_info_cur tmi on ta.ONE_ID = tmi.cust_id 
+	where 1=1
+	and tam.IS_DELETED <>1
+	and date_trunc('month',ta.CREATED_AT) = '2024-01-01'
+	and ta.DATA_SOURCE ='C'
+	and ta.APPOINTMENT_TYPE =70691005
+
+-- 充电订单明细
+select count(x.member_id) `充电地图-活动充电订单量`,
+sum(x.`充电费款金额`) `充电地图-活动充电付款金额`
+from
+	(
+	select a.member_id as member_id,
+	m.member_phone `沃世界注册手机号`,
+	a.vin `绑定vin`,
+	tm.model_name `车型`,
+	a.station_name `充电站`,
+	a.start_time `充电开始时间`,
+	a.end_time `充电结束时间`,
+	a.charge_use_time `充电用时`,
+	a.charge_use_power `充电量`,
+	a.total_money_crossed `充电费款金额`,
+	a.stop_reason `结束原因`
+	from ods_chrg.ods_chrg_tt_charge_order_d a
+	left join ods_memb.ods_memb_tc_member_info_cur m on toString(a.member_id)=toString(m.id) 
+	left join ods_vehi.ods_vehi_tt_invoice_statistics_dms_cur tisd on toString(tisd.vin) =toString(a.vin )
+	left join ods_bada.ods_bada_tm_model_cur tm on tm.id=tisd.model_id 
+	join (
+			select distinct distinct_id
+			from ods_rawd.ods_rawd_events_d_di a
+			where 1=1
+			and a.`date` = '2024-02-25'
+			and distinct_id not like '%#%'
+			and length(a.distinct_id)<9
+			and event = 'Page_entry'
+			and page_title='2月会员日'
+			and activity_name='2024年2月会员日'
+			and (($lib in('iOS','Android') and left($app_version,1)='5') or $lib ='MiniProgram' or  channel in ('Mini', 'App') )
+		)x on toString(x.distinct_id) =toString(m.cust_id) 
+	where a.is_deleted =0
+	and tisd.is_deleted =0
+	and date(a.create_time)='2024-02-25'
+)x 
+
+--# 充电地图当月订单量
+select count(x.member_id) `充电地图-当月充电订单量`
+--,sum(x.`充电费款金额`) `充电地图-活动充电付款金额`
+from
+	(
+	select a.member_id as member_id,
+	m.member_phone `沃世界注册手机号`,
+	a.vin `绑定vin`,
+	tm.model_name `车型`,
+	a.station_name `充电站`,
+	a.start_time `充电开始时间`,
+	a.end_time `充电结束时间`,
+	a.charge_use_time `充电用时`,
+	a.charge_use_power `充电量`,
+	a.total_money_crossed `充电费款金额`,
+	a.stop_reason `结束原因`
+	from ods_chrg.ods_chrg_tt_charge_order_d a
+	left join ods_memb.ods_memb_tc_member_info_cur m on toString(a.member_id)=toString(m.id) 
+	left join ods_vehi.ods_vehi_tt_invoice_statistics_dms_cur tisd on toString(tisd.vin) =toString(a.vin )
+	left join ods_bada.ods_bada_tm_model_cur tm on tm.id=tisd.model_id 
+	where a.is_deleted =0
+	and tisd.is_deleted =0
+	and date_trunc('month',a.create_time)='2024-01-01'
+)x 
+
+-- 活动GMV
+select 
+SUM(m.`总金额`),
+SUM(case when m.fl='精品' then m.`总金额` else null end) `精品（元）`,
+SUM(case when m.fl='售后养护' then m.`总金额` else null end) `售后（元）`,
+SUM(case when m.fl='充电专区' then m.`总金额` else null end) `充电（元）`,
+--SUM(case when m.fl='生活服务' then m.`总金额` else null end) `第三方（元）`,
+SUM(m.`现金支付金额` ) `现金支付金额（元）`
+--SUM(case when m.fl='售后养护' then m.`现金支付金额` else null end) `现金支付金额售后（元）`,
+--SUM(case when m.fl='充电专区' then m.`现金支付金额` else null end) `现金支付金额充电（元）`
+from 
+	(select a.order_code `订单编号`
+	,b.product_id `商城兑换id`
+	,a.user_id `会员id`
+	,a.user_name `会员姓名`
+--	,x.distinct_id
+	,b.spu_name `兑换商品`
+	,b.spu_id
+	,b.sku_id
+	,b.spu_bus_id
+	,b.sku_code
+	,b.sku_real_point `商品单价`
+	,ifnull(ifnull(f2.fl,case when f.name in('售后养护','充电专区','精品','生活服务') then f.name else null end)
+	,CASE WHEN b.spu_type =51121001 THEN '精品'
+		WHEN b.spu_type =51121002 THEN '生活服务' --第三方卡券`
+		WHEN b.spu_type =51121003 THEN '售后养护' --保养类卡券
+		WHEN b.spu_type =51121004 THEN '精品'
+		WHEN b.spu_type =51121006 THEN '一件代发'
+		WHEN b.spu_type =51121007 THEN '经销商端产品'
+		WHEN b.spu_type =51121008 THEN '售后养护'   -- '车辆权益'
+		ELSE null end) `fl`
+,CASE b.spu_type
+		WHEN 51121001 THEN '沃尔沃精品' 
+		WHEN 51121002 THEN '第三方卡券' 
+		WHEN 51121003 THEN '虚拟服务卡券' 
+		WHEN 51121004 THEN '非沃尔沃精品'    -- 还会新增一个子分类
+		WHEN 51121006 THEN '一件代发'
+		WHEN 51121007 THEN '经销商端产品'
+	    WHEN 51121008 THEN '虚拟服务权益'
+	    ELSE null end `商品类型`
+	,b.fee/100 `总金额`
+	,b.coupon_fee/100 `优惠券抵扣金额`
+	,round(b.point_amount/3+b.pay_fee/100,2) `实付金额`
+	,b.pay_fee/100 `现金支付金额`
+	,b.point_amount `支付V值`
+	,b.sku_num `兑换数量`
+	,a.create_time as tt
+	,case 
+		when b.pay_fee=0 then '纯V值支付'
+		when b.point_amount=0 then '纯现金支付' else '混合支付' end `支付方式`
+	,f.name `分类`
+	,CASE b.spu_type 
+		WHEN 51121001 THEN 'VOLVO仓商品'
+		WHEN 51121002 THEN 'VOLVO仓第三方卡券'
+		WHEN 51121003 THEN '虚拟服务卡券'
+		WHEN 51121004 THEN '京东仓商品' ELSE NULL END AS `仓库`
+	,CASE b.status
+			WHEN 51301001 THEN '待付款'
+			WHEN 51301002 THEN '待发货'
+			WHEN 51301003 THEN '待收货'
+			WHEN 51301004 THEN '收货确认'
+			WHEN 51301005 THEN '退货中'
+			WHEN 51301006 THEN '交易关闭' 
+	END AS `商品状态`
+	,CASE a.status
+			WHEN 51031002 THEN '待付款'
+			WHEN 51031003 THEN '待发货' 
+			WHEN 51031004 THEN '待收货' 
+			WHEN 51031005 THEN '已完成'
+			WHEN 51031006 THEN '已关闭'  
+	END AS `订单状态`
+	,CASE a.close_reason 
+	WHEN 51091003 THEN '用户退款' 
+	WHEN 51091004 THEN '用户退货退款' 
+	WHEN 51091005 THEN '商家退款' END AS `关闭原因`
+	,e.`退货状态` `退货状态`
+	,e.`退货数量` `退货数量`
+	,e.`退回V值` `退回V值`
+	,e.`退回时间` `退回时间`
+	from ods_orde.ods_orde_tt_order_d a  -- 订单主表
+	left join ods_orde.ods_orde_tt_order_product_d  b on a.order_code = b.order_code  -- 订单商品表
+	left join (
+		-- 清洗cust_id
+		select m.*
+		from 
+			(-- 清洗cust_id
+			select m.*,
+			row_number() over(partition by m.cust_id order by m.create_time desc) rk
+			from ods_memb.ods_memb_tc_member_info_cur m
+			where m.member_status<>'60341003' and m.is_deleted=0
+			and m.cust_id is not null 
+			Settings allow_experimental_window_functions = 1
+			) m
+		where m.rk=1) h on toString(a.user_id) = toString(h.id)   -- 会员表(获取会员信息)
+	join (
+			select distinct distinct_id
+			from ods_rawd.ods_rawd_events_d_di a
+			where 1=1
+			and a.`date` = '2024-02-25'
+			and distinct_id not like '%#%'
+			and length(a.distinct_id)<9
+			and event = 'Page_entry'
+			and page_title='2月会员日'
+			and activity_name='2024年2月会员日'
+			and (($lib in('iOS','Android') and left($app_version,1)='5') or $lib ='MiniProgram' or  channel in ('Mini', 'App') )
+		)x on toString(x.distinct_id) =toString(h.cust_id) 
+	left join ods_good.ods_good_item_spu_d j on b.spu_id = j.id   -- 前台spu表(获取商品前台专区ID)
+	left join ods_good.ods_good_front_category_d f on f.id=j.front_category_id -- 前台专区列表(获取前天专区名称)
+	left join
+	(
+		-- 获取前台分类[充电专区]的商品 
+		select distinct j.id as spu_id ,
+		j.name,
+		f2.name as fl
+		from ods_good.ods_good_item_spu_d j
+		left join ods_good.ods_good_item_sku_d i on j.id =i.spu_id 
+		left join ods_good.ods_good_item_sku_channel_d s on i.id =s.sku_id 
+		left join ods_good.ods_good_front_category_d f2 on s.front_category1_id=f2.id
+		where 1=1
+		and f2.name='充电专区'
+--		and j.is_deleted ='0' -- 该表该字段全为空
+--		and i.is_deleted ='0' -- 该表该字段全为空
+		and s.is_deleted ='0'
+		and f2.is_deleted ='0'
+	)f2 on f2.spu_id=b.spu_id
+	left join(
+	--	#V值退款成功记录
+		select so.order_code
+		,sp.product_id
+		,CASE 
+			WHEN so.status ='51171001' THEN '待审核'
+			WHEN so.status ='51171002' THEN '待退货入库'
+			WHEN so.status ='51171003' THEN '待退款'
+			WHEN so.status ='51171004' THEN '退款成功'
+			WHEN so.status ='51171005' THEN '退款失败'
+			WHEN so.status ='51171006' THEN '作废退货单' END as `退货状态`
+		,sum(sp.sales_return_num) `退货数量`
+		,sum(so.refund_point) `退回V值`
+		,max(so.create_time) `退回时间`
+		from ods_orde.ods_orde_tt_sales_return_order_d so
+		left join ods_orde.ods_orde_tt_sales_return_order_product_d sp on so.refund_order_code=sp.refund_order_code 
+		where so.is_deleted = 0 
+		and so.status='51171004' -- 退款成功
+		and sp.is_deleted=0
+		GROUP BY order_code,product_id,`退货状态`
+	) e on a.order_code = e.order_code and b.product_id =e.product_id 
+	where 1=1
+	and toDate(a.create_time) = '2024-02-25' 
+	and a.is_deleted <> 1  -- 剔除逻辑删除订单
+	and b.is_deleted <> 1
+	and h.is_deleted <> 1
+--	and j.front_category_id is not null
+	and a.type = 31011003  -- 筛选沃世界商城订单
+	and a.separate_status = 10041002 -- 选择拆单状态否
+	and a.status  NOT IN (51031001,51031007) -- 去除预创建和创建失败订单
+	AND (a.close_reason NOT IN (51091001,51091002) OR a.close_reason IS NULL ) -- 去除超时未支付和取消订单
+	and (b.spu_type in (51121001,51121004,51121006,51121007) or (b.spu_type in (51121002,51121003) and a.status<>51031006 )) -- 剔除虚拟商品已关闭订单
+	and e.order_code is null  -- 剔除退款订单
+	order by a.create_time) m
+
+——————————————————————————————————————————————————————二级页——集卡数据——————————————————————————————————————————————————————————————————————————————————————
+
+--二级页PVUV
+select count( distinct_id),
+count(distinct distinct_id)
+from ods_rawd.ods_rawd_events_d_di a
+where 1=1
+and a.`date` = '2024-02-25'
+and distinct_id not like '%#%'
+and length(a.distinct_id)<9
+and event = 'Page_entry'
+and page_title='2024会员日集卡兑好礼'
+and activity_name='2024会员日集卡兑好礼'
+and (($lib in('iOS','Android') and left($app_version,1)='5') or $lib ='MiniProgram' or  channel in ('Mini', 'App') )
+
+-- 当月集卡-车主/粉丝
+select m.is_vehicle,
+count(distinct c.member_id)
+from ods_voam.ods_voam_activity_card_record_d c 
+left join ods_voam.ods_voam_activity_card_d ca on c.activity_card_code=ca.activity_card_code 
+join ods_memb.ods_memb_tc_member_info_cur m on toString(m.id) =toString(c.member_id)
+where date(c.create_time)='2024-02-25'
+group by is_vehicle
+order by is_vehicle desc 
+
+select 
+	count(distinct distinct_id) ,
+	count(distinct user_id)
+from ods_rawd.ods_rawd_events_d_di
+where 1=1
+and length(distinct_id)<9
+and `date` = '2024-02-25'
+and event='Page_entry'
+and page_title ='2月会员日'
+and activity_name = '2024年2月会员日'
+--and (($lib in('iOS','Android') and left($app_version,1)='5') or $lib ='MiniProgram' or  channel in ('Mini', 'App'))
+
+-- 累计获得1张卡片人数
+select x.num,
+count(distinct x.member_id) t
+from 
+	(
+	-- 每位用户累计获取卡片数量
+	select c.member_id,
+	count(distinct activity_card_id) num 
+	from ods_voam.ods_voam_activity_card_record_d c 
+	left join ods_voam.ods_voam_activity_card_d ca on c.activity_card_code=ca.activity_card_code 
+	where 1=1
+	and date(c.create_time)<='2024-02-25'
+	group by member_id
+	order by member_id desc)x
+group by num 
+order by num
+
+	
+	
+———————————————————————————————————————————————————————————活动页各btn活动数据——————————————————————————————————————————————————————————————————————————————
+
+--App渠道
+SELECT 
+	case 
+		when btn_name ='活动规则' then '01_活动规则btn'
+		when btn_name ='我的奖品' then '02_我的奖品btn'
+		when btn_name ='分享活动' then '03_分享本活动btn'
+		when btn_name ='订阅活动' then '04_订阅活动btn'
+		when btn_name ='立即前往 GO' then '05_马上前往 GO'
+		when btn_name ='立即邀请' and content_title='邀请试驾' then '06_邀请试驾'
+		when btn_name ='即刻试驾' and content_title='预约试驾' then '07_预约试驾'
+		when btn_name ='立即预约' and content_title='养修预约' then '08_养修预约'
+		when btn_name ='立即前往' and content_title='充电地图' then '09_充电地图'
+		when btn_name ='前往领取' and content_title='会员权益' then '10_会员权益'
+--		when btn_name ='立即购买' and content_title='吨吨健身桶' then '11_健身吨吨桶'
+--		when btn_name ='立即购买' then '12_露营实木折叠桌'
+--		when btn_name ='立即购买' then '13_300度充电权益'
+		when btn_name ='立即抽奖' then '14_立即抽奖'
+		when btn_name ='快来猜灯谜' then '15_快来猜灯谜'
+		else '空'
+	end leixing,
+	ifnull(count(user_id),0) pv_fx,
+	ifnull(count(distinct user_id),0) uv_fx
+from ods_rawd.ods_rawd_events_d_di
+where 1=1
+and `date` = '2024-02-25'
+and (($lib in('iOS','Android') and left($app_version,1)='5') or channel = 'App')
+and page_title='2月会员日'
+and activity_name='2024年2月会员日'
+and event ='Button_click'
+and is_bind=0
+group by leixing
+order by leixing
+
+
+-- 测试btn name
+SELECT btn_name,
+content_title,
+ifnull(count(user_id),0) pv_fx,
+ifnull(count(distinct user_id),0) uv_fx
+from ods_rawd.ods_rawd_events_d_di
+where 1=1
+and `date` = '2024-02-25'
+and (($lib in('iOS','Android') and left($app_version,1)='5') or channel = 'App')
+and page_title='2月会员日'
+and activity_name='2024年2月会员日'
+and event ='Button_click'
+group by btn_name,content_title
+order by btn_name,content_title
+
+
+——————————————————————————————————————————————————————————分时段&分渠道数据————————————————————————————————————————————————————————————————————————————————————
+
+--二级页PVUV
+select 
+date_trunc('hour',time) t,
+count(user_id ) pv,
+count(distinct user_id) uv
+from ods_rawd.ods_rawd_events_d_di a
+where 1=1
+and a.`date` = '2024-02-25'
+and event = 'Page_entry'
+and page_title='2月会员日'
+and activity_name='2024年2月会员日'
+and (($lib in('iOS','Android') and left($app_version,1)='5') or $lib ='MiniProgram' or  channel in ('Mini', 'App') )
+group by ROLLUP(t)
+order by t
+
+--渠道点位进入活动页 分
+select 
+x.is_bind,
+x.leixing,
+count(x.user_id) pv,
+count(distinct x.user_id) uv
+from 
+	(
+	SELECT 
+	is_bind,
+	user_id,
+		case 
+			when `$url` like '%promotion_channel_type=app&promotion_channel_sub_type=app&promotion_methods=app_top_banner&promotion_activity=202402_wowcar_member&promotion_supplement=%' then '1社区banner'
+			when `$url` like '%promotion_channel_type=app&promotion_channel_sub_type=app&promotion_methods=quick_entrance&promotion_activity=202402_wowcar_member&promotion_supplement=%' then '2快速入口'
+			when `$url` like '%promotion_channel_type=app&promotion_channel_sub_type=app&promotion_methods=btn&promotion_activity=202402_wowcar_member&promotion_supplement=%' then '3公众号推文'
+			when `$url` like '%promotion_channel_type=app&promotion_channel_sub_type=app&promotion_methods=btn_text_jump&promotion_activity=202402_wowcar_member&promotion_supplement=%' then '4活动推文跳转btn'
+			when `$url` like '%promotion_channel_type=sms&promotion_channel_sub_type=sms&promotion_methods=short_link&promotion_activity=202402_wowcar_member&promotion_supplement=%' then '5短信短链'
+			when `$url` like '%promotion_channel_type=app&promotion_channel_sub_type=app&promotion_activity=2402_member%' then '6勋章入口'
+			when `$url` like '%promotion_channel_type=app&promotion_channel_sub_type=app&promotion_methods=circle_club_qrcode&promotion_activity=202402_wowcar_member&promotion_supplement=%' then '7朋友圈海报二维码'
+--			when `$url` like '%promotion_channel_type=dealer%' then '8经销商code'
+			end leixing,
+	time
+	from ods_rawd.ods_rawd_events_d_di 
+	where date ='2024-02-25' 
+	and page_title='2月会员日'
+	and activity_name='2024年2月会员日'
+	and event ='Page_entry'
+	and leixing is not null )x
+group by is_bind,leixing
+order by is_bind,leixing
+
+--渠道点位进入活动页 总
+select 
+x.leixing,
+count(x.user_id) pv,
+count(distinct x.user_id) uv
+from 
+	(
+	SELECT 
+	is_bind,
+	user_id,
+		case 
+			when `$url` like '%promotion_channel_type=app&promotion_channel_sub_type=app&promotion_methods=app_top_banner&promotion_activity=202402_wowcar_member&promotion_supplement=%' then '1社区banner'
+			when `$url` like '%promotion_channel_type=app&promotion_channel_sub_type=app&promotion_methods=quick_entrance&promotion_activity=202402_wowcar_member&promotion_supplement=%' then '2快速入口'
+			when `$url` like '%promotion_channel_type=app&promotion_channel_sub_type=app&promotion_methods=btn&promotion_activity=202402_wowcar_member&promotion_supplement=%' then '3公众号推文'
+			when `$url` like '%promotion_channel_type=app&promotion_channel_sub_type=app&promotion_methods=btn_text_jump&promotion_activity=202402_wowcar_member&promotion_supplement=%' then '4活动推文跳转btn'
+			when `$url` like '%promotion_channel_type=sms&promotion_channel_sub_type=sms&promotion_methods=short_link&promotion_activity=202402_wowcar_member&promotion_supplement=%' then '5短信短链'
+			when `$url` like '%promotion_channel_type=app&promotion_channel_sub_type=app&promotion_activity=2402_member%' then '6勋章入口'
+			when `$url` like '%promotion_channel_type=app&promotion_channel_sub_type=app&promotion_methods=circle_club_qrcode&promotion_activity=202402_wowcar_member&promotion_supplement=%' then '7朋友圈海报二维码'
+--			when `$url` like '%promotion_channel_type=dealer%' then '8经销商code'
+			end leixing,
+	time
+	from ods_rawd.ods_rawd_events_d_di 
+	where date ='2024-02-25' 
+	and page_title='2月会员日'
+	and activity_name='2024年2月会员日'
+	and event ='Page_entry'
+	and leixing is not null )x
+group by leixing
+order by leixing
+
+--渠道点位首次进入活动页 分
+select 
+x.is_bind,
+x.leixing,
+count(x.user_id) pv,
+count(distinct x.user_id) uv
+from 
+	(
+	SELECT 
+	is_bind,
+	user_id,
+		case 
+			when `$url` like '%promotion_channel_type=app&promotion_channel_sub_type=app&promotion_methods=app_top_banner&promotion_activity=202402_wowcar_member&promotion_supplement=%' then '1社区banner'
+			when `$url` like '%promotion_channel_type=app&promotion_channel_sub_type=app&promotion_methods=quick_entrance&promotion_activity=202402_wowcar_member&promotion_supplement=%' then '2快速入口'
+			when `$url` like '%promotion_channel_type=app&promotion_channel_sub_type=app&promotion_methods=btn&promotion_activity=202402_wowcar_member&promotion_supplement=%' then '3公众号推文'
+			when `$url` like '%promotion_channel_type=app&promotion_channel_sub_type=app&promotion_methods=btn_text_jump&promotion_activity=202402_wowcar_member&promotion_supplement=%' then '4活动推文跳转btn'
+			when `$url` like '%promotion_channel_type=sms&promotion_channel_sub_type=sms&promotion_methods=short_link&promotion_activity=202402_wowcar_member&promotion_supplement=%' then '5短信短链'
+			when `$url` like '%promotion_channel_type=app&promotion_channel_sub_type=app&promotion_activity=2402_member%' then '6勋章入口'
+			when `$url` like '%promotion_channel_type=app&promotion_channel_sub_type=app&promotion_methods=circle_club_qrcode&promotion_activity=202402_wowcar_member&promotion_supplement=%' then '7朋友圈海报二维码'
+--			when `$url` like '%promotion_channel_type=dealer%' then '8经销商code'
+			end leixing,
+	time,
+	row_number()over(partition by user_id order by time desc) rk 
+	from ods_rawd.ods_rawd_events_d_di 
+	where date ='2024-02-25' 
+	and page_title='2月会员日'
+	and activity_name='2024年2月会员日'
+	and event ='Page_entry'
+	and leixing is not null 
+	Settings allow_experimental_window_functions = 1)x
+where x.rk=1
+group by is_bind,leixing
+order by is_bind,leixing
+
+
+
+--活动期间经销商code的pv、uv
+SELECT 
+	promotion_channel_sub_type,
+	count(user_id) pv,
+	count(distinct user_id) uv
+from ods_rawd.ods_rawd_events_d_di
+where 1=1
+and date ='2024-02-25' 
+and event='Page_entry'
+and page_title='2月会员日'
+and activity_name='2024年2月会员日'
+--and (($lib in('iOS','Android') and left($app_version,1)='5') or $lib ='MiniProgram' or  channel in ('Mini', 'App'))
+and `$url` like '%promotion_channel_type=dealer%'
+group by promotion_channel_sub_type
+order by uv desc
+
+——————————————————————————————————————————————————————————————————优惠券核销&商城售卖情况————————————————————————————————————————————————————————————————————————————
+
+-- 优惠券核销情况
+select 
+x.coupon_id,
+x.卡券状态,
+concat(x.coupon_id,x.卡券状态),
+count(case when x.IS_VEHICLE=1 then x.id else null end) 车主,
+count(case when x.IS_VEHICLE=0 then x.id else null end) 粉丝,
+count(x.id)
+from (
+SELECT 
+	a.id,
+ 	a.coupon_source,
+    b.coupon_name 卡券名称,
+    b.id coupon_id,
+    a.left_value/100 面额,
+    b.coupon_code 券号,
+    coalesce(a.member_id,tmi1.id) 沃世界会员ID,
+    coalesce(tmi.MEMBER_NAME,tmi1.MEMBER_NAME) 会员昵称,
+    coalesce(tmi.real_name,tmi1.real_name) 姓名,
+    coalesce(tmi.MEMBER_PHONE,tmi1.MEMBER_PHONE) 沃世界绑定手机号,
+    coalesce(tmi.is_vehicle,tmi1.is_vehicle) is_vehicle,
+    t.associate_vin 购买关联VIN,
+    declear_list.company_code 经销商code,
+    t.associate_dealer 购买关联经销商,
+    a.get_date 获得时间,
+    a.activate_date 激活时间,
+    a.expiration_date 卡券失效日期,
+    CAST(a.exchange_code as varchar) 核销码,
+    CASE a.ticket_state
+        WHEN 31061001 THEN '已领用'
+	    WHEN 31061002 THEN '已锁定'
+	    WHEN 31061003 THEN '已核销' 
+	    WHEN 31061004 THEN '已失效'
+	    WHEN 31061005 THEN '已作废'
+	END AS 卡券状态,
+	v.核销经销商,
+	v.核销VIN,
+	v.核销时间
+FROM coupon.tt_coupon_detail a  -- 卡券信息表
+JOIN coupon.tt_coupon_info b ON a.coupon_id = b.id 
+left join `member`.tc_member_info tmi on a.member_id = tmi.id and tmi.is_deleted=0-- 会员表
+left join (
+	select tmi.*
+		,row_number ()over(partition by tmi.cust_id order by tmi.create_time desc ) rk
+	from `member`.tc_member_info tmi 
+	where tmi.is_deleted = 0
+	) tmi1 on tmi1.cust_id=a.one_id and tmi1.rk=1
+left join (
+	select	t.*,sk.coupon_id
+	from `order`.tt_order_product t
+	inner join goods.item_sku sk
+	on t.sku_id =sk.id and sk.is_deleted =0 and sk.sku_status =1
+) t 
+on a.order_code = t.order_code and a.coupon_id= t.coupon_id -- 商品购买关联经销商，Vin
+left join (--获取关联经销商名称
+	select company_code,code_name,row_number() over(partition by code_name order by bz) as bz
+    from (
+        (select company_code ,company_short_name_cn as code_name,'1' as bz
+        from organization.tm_company
+        where IS_DELETED = 0 AND COMPANY_TYPE = 15061003 and company_short_name_cn is not null )
+        union all 
+        select company_code,official_dealer_name as code_name,'2' as bz
+        from organization.tm_company
+        where IS_DELETED = 0 AND COMPANY_TYPE = 15061003 and official_dealer_name is not null and official_dealer_name<>''
+        )
+) declear_list
+on declear_list.code_name = t.associate_dealer and declear_list.bz='1'
+LEFT JOIN (--获取卡券核销信息
+	select 
+		v.coupon_detail_id
+		,v.customer_name 核销用户名
+		,v.customer_mobile 核销手机号
+		,v.verify_amount 
+		,v.dealer_code 核销经销商
+		,v.vin 核销VIN
+		,v.operate_date 核销时间
+		,v.order_no 订单号
+		,v.PLATE_NUMBER
+	from coupon.tt_coupon_verify v  -- 卡券核销信息表
+	where  v.is_deleted=0
+	order by v.create_time 
+) v ON v.coupon_detail_id = a.id
+where 1=1
+and a.get_date>= '2024-01-25'
+and a.get_date< '2024-02-26'
+and a.is_deleted=0 
+and a.coupon_id in (
+'6311',
+'6312',
+'6313')--2024.1
+--and a.coupon_id in ('5797','5798','5799','5904')--25日
+--and a.coupon_id in ('5801','5802','5803','5903')--1日
+order by 12
+) x
+where x.卡券状态='已领用' or x.卡券状态='已核销'
+group by 1,2
+order by 1,2 desc 
+
+-- 会员日商品 销售
+select 
+m.`兑换商品` sp,
+m.spu_id spid,
+sum(m.`兑换数量`) `12/25-1/24月销量`
+from 
+	(select a.order_code `订单编号`
+	,b.product_id `商城兑换id`
+	,a.user_id `会员id`
+	,a.user_name `会员姓名`
+	,b.spu_name `兑换商品`
+	,b.spu_id spu_id
+	,b.sku_id
+	,b.spu_bus_id
+	,b.sku_code
+	,b.sku_real_point `商品单价`
+	,ifnull(ifnull(f2.fl,case when f.name in('售后养护','充电专区','精品','生活服务') then f.name else null end)
+	,CASE WHEN b.spu_type =51121001 THEN '精品'
+		WHEN b.spu_type =51121002 THEN '生活服务' --第三方卡券`
+		WHEN b.spu_type =51121003 THEN '售后养护' --保养类卡券
+		WHEN b.spu_type =51121004 THEN '精品'
+		WHEN b.spu_type =51121006 THEN '一件代发'
+		WHEN b.spu_type =51121007 THEN '经销商端产品'
+		WHEN b.spu_type =51121008 THEN '售后养护'   -- '车辆权益'
+		ELSE null end) `fl`
+,CASE b.spu_type
+		WHEN 51121001 THEN '沃尔沃精品' 
+		WHEN 51121002 THEN '第三方卡券' 
+		WHEN 51121003 THEN '虚拟服务卡券' 
+		WHEN 51121004 THEN '非沃尔沃精品'    -- 还会新增一个子分类
+		WHEN 51121006 THEN '一件代发'
+		WHEN 51121007 THEN '经销商端产品'
+	    WHEN 51121008 THEN '虚拟服务权益'
+	    ELSE null end `商品类型`
+	,b.fee/100 `总金额`
+	,b.coupon_fee/100 `优惠券抵扣金额`
+	,round(b.point_amount/3+b.pay_fee/100,2) `实付金额`
+	,b.pay_fee/100 `现金支付金额`
+	,b.point_amount `支付V值`
+	,b.sku_num `兑换数量`
+	,a.create_time as tt
+	,case 
+		when b.pay_fee=0 then '纯V值支付'
+		when b.point_amount=0 then '纯现金支付' else '混合支付' end `支付方式`
+	,f.name `分类`
+	,CASE b.spu_type 
+		WHEN 51121001 THEN 'VOLVO仓商品'
+		WHEN 51121002 THEN 'VOLVO仓第三方卡券'
+		WHEN 51121003 THEN '虚拟服务卡券'
+		WHEN 51121004 THEN '京东仓商品' ELSE NULL END AS `仓库`
+	,CASE b.status
+			WHEN 51301001 THEN '待付款'
+			WHEN 51301002 THEN '待发货'
+			WHEN 51301003 THEN '待收货'
+			WHEN 51301004 THEN '收货确认'
+			WHEN 51301005 THEN '退货中'
+			WHEN 51301006 THEN '交易关闭' 
+	END AS `商品状态`
+	,CASE a.status
+			WHEN 51031002 THEN '待付款'
+			WHEN 51031003 THEN '待发货' 
+			WHEN 51031004 THEN '待收货' 
+			WHEN 51031005 THEN '已完成'
+			WHEN 51031006 THEN '已关闭'  
+	END AS `订单状态`
+	,CASE a.close_reason 
+	WHEN 51091003 THEN '用户退款' 
+	WHEN 51091004 THEN '用户退货退款' 
+	WHEN 51091005 THEN '商家退款' END AS `关闭原因`
+	,e.`退货状态` `退货状态`
+	,e.`退货数量` `退货数量`
+	,e.`退回V值` `退回V值`
+	,e.`退回时间` `退回时间`
+	from ods_orde.ods_orde_tt_order_d a  -- 订单主表
+	left join ods_orde.ods_orde_tt_order_product_d  b on a.order_code = b.order_code  -- 订单商品表
+	left join (
+		-- 清洗cust_id
+		select m.*
+		from 
+			(-- 清洗cust_id
+			select m.*,
+			row_number() over(partition by m.cust_id order by m.create_time desc) rk
+			from ods_memb.ods_memb_tc_member_info_cur m
+			where m.member_status<>'60341003' and m.is_deleted=0
+			and m.cust_id is not null 
+			Settings allow_experimental_window_functions = 1
+			) m
+		where m.rk=1) h on toString(a.user_id) = toString(h.id)   -- 会员表(获取会员信息)
+	join (
+			select distinct distinct_id
+			from ods_rawd.ods_rawd_events_d_di a
+			where 1=1
+			and a.`date` = '2024-02-25'
+			and distinct_id not like '%#%'
+			and length(a.distinct_id)<9
+			and event = 'Page_entry'
+			and page_title='2月会员日'
+			and activity_name='2024年2月会员日'
+			and (($lib in('iOS','Android') and left($app_version,1)='5') or $lib ='MiniProgram' or  channel in ('Mini', 'App') )
+		)x on toString(x.distinct_id) =toString(h.cust_id) 
+	left join ods_good.ods_good_item_spu_d j on b.spu_id = j.id   -- 前台spu表(获取商品前台专区ID)
+	left join ods_good.ods_good_front_category_d f on f.id=j.front_category_id -- 前台专区列表(获取前天专区名称)
+	left join
+	(
+		-- 获取前台分类[充电专区]的商品 
+		select distinct j.id as spu_id ,
+		j.name,
+		f2.name as fl
+		from ods_good.ods_good_item_spu_d j
+		left join ods_good.ods_good_item_sku_d i on j.id =i.spu_id 
+		left join ods_good.ods_good_item_sku_channel_d s on i.id =s.sku_id 
+		left join ods_good.ods_good_front_category_d f2 on s.front_category1_id=f2.id
+		where 1=1
+		and f2.name='充电专区'
+--		and j.is_deleted ='0' -- 该表该字段全为空
+--		and i.is_deleted ='0' -- 该表该字段全为空
+		and s.is_deleted ='0'
+		and f2.is_deleted ='0'
+	)f2 on f2.spu_id=b.spu_id
+	left join(
+	--	#V值退款成功记录
+		select so.order_code
+		,sp.product_id
+		,CASE 
+			WHEN so.status ='51171001' THEN '待审核'
+			WHEN so.status ='51171002' THEN '待退货入库'
+			WHEN so.status ='51171003' THEN '待退款'
+			WHEN so.status ='51171004' THEN '退款成功'
+			WHEN so.status ='51171005' THEN '退款失败'
+			WHEN so.status ='51171006' THEN '作废退货单' END as `退货状态`
+		,sum(sp.sales_return_num) `退货数量`
+		,sum(so.refund_point) `退回V值`
+		,max(so.create_time) `退回时间`
+		from ods_orde.ods_orde_tt_sales_return_order_d so
+		left join ods_orde.ods_orde_tt_sales_return_order_product_d sp on so.refund_order_code=sp.refund_order_code 
+		where so.is_deleted = 0 
+		and so.status='51171004' -- 退款成功
+		and sp.is_deleted=0
+		GROUP BY order_code,product_id,`退货状态`
+	) e on a.order_code = e.order_code and b.product_id =e.product_id 
+	where 1=1
+	and toDate(a.create_time) >='2024-01-25' 
+	and toDate(a.create_time) <'2024-02-25' 
+	and a.is_deleted <> 1  -- 剔除逻辑删除订单
+	and b.is_deleted <> 1
+	and h.is_deleted <> 1
+--	and j.front_category_id is not null
+	and a.type = 31011003  -- 筛选沃世界商城订单
+	and a.separate_status = 10041002 -- 选择拆单状态否
+	and a.status  NOT IN (51031001,51031007) -- 去除预创建和创建失败订单
+	AND (a.close_reason NOT IN (51091001,51091002) OR a.close_reason IS NULL ) -- 去除超时未支付和取消订单
+--	and (b.spu_type in (51121001,51121004,51121006,51121007) or (b.spu_type in (51121002,51121003) and a.status<>51031006 )) -- 剔除虚拟商品已关闭订单
+--	and e.order_code is null  -- 剔除退款订单
+	and b.spu_id in ('3582',
+'3143',
+'3681',
+'3776',
+'3778',
+'3791',
+'3211',
+'3215',
+'3214')
+	order by a.create_time) m
+	group by sp,spid
+	order by sp,spid
+
+
+-- 会员日活动销量
+select 
+m.spu_id sp,
+sum(m.`兑换数量`) `销量`,
+sum(m.`总金额`) `订单金额`,
+sum(m.`现金支付金额`) `实付现金金额`,
+sum(m.`现金支付金额`)/sum(m.`总金额`) `实付现金比`
+from 
+	(select a.order_code `订单编号`
+	,b.product_id `商城兑换id`
+	,a.user_id `会员id`
+	,a.user_name `会员姓名`
+	,b.spu_name `兑换商品`
+	,b.spu_id spu_id
+	,b.sku_id
+	,b.spu_bus_id
+	,b.sku_code
+	,b.sku_real_point `商品单价`
+	,ifnull(ifnull(f2.fl,case when f.name in('售后养护','充电专区','精品','生活服务') then f.name else null end)
+	,CASE WHEN b.spu_type =51121001 THEN '精品'
+		WHEN b.spu_type =51121002 THEN '生活服务' --第三方卡券`
+		WHEN b.spu_type =51121003 THEN '售后养护' --保养类卡券
+		WHEN b.spu_type =51121004 THEN '精品'
+		WHEN b.spu_type =51121006 THEN '一件代发'
+		WHEN b.spu_type =51121007 THEN '经销商端产品'
+		WHEN b.spu_type =51121008 THEN '售后养护'   -- '车辆权益'
+		ELSE null end) `fl`
+,CASE b.spu_type
+		WHEN 51121001 THEN '沃尔沃精品' 
+		WHEN 51121002 THEN '第三方卡券' 
+		WHEN 51121003 THEN '虚拟服务卡券' 
+		WHEN 51121004 THEN '非沃尔沃精品'    -- 还会新增一个子分类
+		WHEN 51121006 THEN '一件代发'
+		WHEN 51121007 THEN '经销商端产品'
+	    WHEN 51121008 THEN '虚拟服务权益'
+	    ELSE null end `商品类型`
+	,b.fee/100 `总金额`
+	,b.coupon_fee/100 `优惠券抵扣金额`
+	,round(b.point_amount/3+b.pay_fee/100,2) `实付金额`
+	,b.pay_fee/100 `现金支付金额`
+	,b.point_amount `支付V值`
+	,b.sku_num `兑换数量`
+	,a.create_time as tt
+	,case 
+		when b.pay_fee=0 then '纯V值支付'
+		when b.point_amount=0 then '纯现金支付' else '混合支付' end `支付方式`
+	,f.name `分类`
+	,CASE b.spu_type 
+		WHEN 51121001 THEN 'VOLVO仓商品'
+		WHEN 51121002 THEN 'VOLVO仓第三方卡券'
+		WHEN 51121003 THEN '虚拟服务卡券'
+		WHEN 51121004 THEN '京东仓商品' ELSE NULL END AS `仓库`
+	,CASE b.status
+			WHEN 51301001 THEN '待付款'
+			WHEN 51301002 THEN '待发货'
+			WHEN 51301003 THEN '待收货'
+			WHEN 51301004 THEN '收货确认'
+			WHEN 51301005 THEN '退货中'
+			WHEN 51301006 THEN '交易关闭' 
+	END AS `商品状态`
+	,CASE a.status
+			WHEN 51031002 THEN '待付款'
+			WHEN 51031003 THEN '待发货' 
+			WHEN 51031004 THEN '待收货' 
+			WHEN 51031005 THEN '已完成'
+			WHEN 51031006 THEN '已关闭'  
+	END AS `订单状态`
+	,CASE a.close_reason 
+	WHEN 51091003 THEN '用户退款' 
+	WHEN 51091004 THEN '用户退货退款' 
+	WHEN 51091005 THEN '商家退款' END AS `关闭原因`
+	,e.`退货状态` `退货状态`
+	,e.`退货数量` `退货数量`
+	,e.`退回V值` `退回V值`
+	,e.`退回时间` `退回时间`
+	from ods_orde.ods_orde_tt_order_d a  -- 订单主表
+	left join ods_orde.ods_orde_tt_order_product_d  b on a.order_code = b.order_code  -- 订单商品表
+	left join (
+		-- 清洗cust_id
+		select m.*
+		from 
+			(-- 清洗cust_id
+			select m.*,
+			row_number() over(partition by m.cust_id order by m.create_time desc) rk
+			from ods_memb.ods_memb_tc_member_info_cur m
+			where m.member_status<>'60341003' and m.is_deleted=0
+			and m.cust_id is not null 
+			Settings allow_experimental_window_functions = 1
+			) m
+		where m.rk=1) h on toString(a.user_id) = toString(h.id)   -- 会员表(获取会员信息)
+	left join ods_good.ods_good_item_spu_d j on b.spu_id = j.id   -- 前台spu表(获取商品前台专区ID)
+	left join ods_good.ods_good_front_category_d f on f.id=j.front_category_id -- 前台专区列表(获取前天专区名称)
+	left join
+	(
+		-- 获取前台分类[充电专区]的商品 
+		select distinct j.id as spu_id ,
+		j.name,
+		f2.name as fl
+		from ods_good.ods_good_item_spu_d j
+		left join ods_good.ods_good_item_sku_d i on j.id =i.spu_id 
+		left join ods_good.ods_good_item_sku_channel_d s on i.id =s.sku_id 
+		left join ods_good.ods_good_front_category_d f2 on s.front_category1_id=f2.id
+		where 1=1
+		and f2.name='充电专区'
+--		and j.is_deleted ='0' -- 该表该字段全为空
+--		and i.is_deleted ='0' -- 该表该字段全为空
+		and s.is_deleted ='0'
+		and f2.is_deleted ='0'
+	)f2 on f2.spu_id=b.spu_id
+	left join(
+	--	#V值退款成功记录
+		select so.order_code
+		,sp.product_id
+		,CASE 
+			WHEN so.status ='51171001' THEN '待审核'
+			WHEN so.status ='51171002' THEN '待退货入库'
+			WHEN so.status ='51171003' THEN '待退款'
+			WHEN so.status ='51171004' THEN '退款成功'
+			WHEN so.status ='51171005' THEN '退款失败'
+			WHEN so.status ='51171006' THEN '作废退货单' END as `退货状态`
+		,sum(sp.sales_return_num) `退货数量`
+		,sum(so.refund_point) `退回V值`
+		,max(so.create_time) `退回时间`
+		from ods_orde.ods_orde_tt_sales_return_order_d so
+		left join ods_orde.ods_orde_tt_sales_return_order_product_d sp on so.refund_order_code=sp.refund_order_code 
+		where so.is_deleted = 0 
+		and so.status='51171004' -- 退款成功
+		and sp.is_deleted=0
+		GROUP BY order_code,product_id,`退货状态`
+	) e on a.order_code = e.order_code and b.product_id =e.product_id 
+	where 1=1
+--	and toDate(a.create_time) >= '2023-12-25' 
+	and toDate(a.create_time) = '2024-02-25' 
+	and a.is_deleted <> 1  -- 剔除逻辑删除订单
+	and b.is_deleted <> 1
+	and h.is_deleted <> 1
+--	and j.front_category_id is not null
+	and a.type = 31011003  -- 筛选沃世界商城订单
+	and a.separate_status = 10041002 -- 选择拆单状态否
+	and a.status  NOT IN (51031001,51031007) -- 去除预创建和创建失败订单
+	AND (a.close_reason NOT IN (51091001,51091002) OR a.close_reason IS NULL ) -- 去除超时未支付和取消订单
+--	and (b.spu_type in (51121001,51121004,51121006,51121007) or (b.spu_type in (51121002,51121003) and a.status<>51031006 )) -- 剔除虚拟商品已关闭订单
+--	and e.order_code is null  -- 剔除退款订单
+	and b.spu_id in ('3582',
+'3143',
+'3681',
+'3776',
+'3778',
+'3791',
+'3211',
+'3215',
+'3214')
+	order by a.create_time) m
+	group by sp 
+	order by sp
+	
+——————————————————————————————————————————————————————————————————抽奖明细————————————————————————————————————————————————————————————————————————
+
+-- 车主粉丝奖池抽走数量
+select x.奖池名称,
+count(1)
+from 
+	(
+	select
+	a.member_id,
+	a.nick_name 姓名,
+	case when d.is_vehicle =1 then '是' 
+		 when d.is_vehicle =0 then '否' 
+		 end as 是否车主,
+	case when d.level_id=1 then '银卡'
+		 when d.level_id=2 then '金卡'
+		 when d.level_id=3 then '白金卡'
+		 when d.level_id=4 then '黑卡'
+		 end as 会员等级,
+	d.MEMBER_PHONE 沃世界注册手机号,
+	case when a.have_win = '1' then '中奖'
+		when a.have_win = '0' then '未中奖'
+		end 是否中奖,
+	case when a.have_send = '1' then '已发放'
+		when a.have_send = '0' then '未发放'
+		end 奖品是否发放,
+	a.create_time 抽奖时间,
+	b.prize_name 中奖奖品,
+	b.prize_level_nick_name 奖品等级,
+	hour(a.create_time)  时段,
+	a.lottery_play_code 抽奖code,
+	lpi.lottery_play_name 奖池名称,
+	case
+		when d.level_id=1 then '银卡'
+		when d.level_id>=2 then '金卡及以上'
+	end as 会员等级2
+	from volvo_online_activity_module.lottery_draw_log a
+	left join volvo_online_activity_module.lottery_play_pool b on a.lottery_play_code = b.lottery_play_code and a.prize_code = b.prize_code
+	left join volvo_online_activity_module.lottery_play_init lpi on lpi.lottery_play_code =a.lottery_play_code 
+	left join `member`.tc_member_info d on a.member_id = d.ID
+	where 1=1
+	and a.lottery_play_code like '2024_26_memberDay%'  -- 当月会员日code
+--	and a.lottery_play_code like 'member_day_2024%'  -- 1月会员日code
+	and date(a.create_time)='2024-02-25'
+	and a.have_win = 1   -- 中奖
+	--and prize_name like '%2024%'
+	order by a.create_time
+)x group by 1
+order by 1 desc 
+
+-- 13、抽奖V值消耗
+select
+SUM(r.INTEGRAL)抽奖消耗V值
+from member.tt_member_flow_record r 
+where r.EVENT_DESC like '%沃尔沃会员日抽奖抵扣v值%'
+and date(r.CREATE_TIME) = '2024-01-25'
+order by 1
+
+-- 12、人均抽奖次数
+select
+ COUNT(a.member_id)抽奖次数,
+-- COUNT(DISTINCT a.member_id)抽奖人数,
+ROUND(COUNT(a.member_id)/COUNT(DISTINCT a.member_id),1) 人均抽奖次数
+from volvo_online_activity_module.lottery_draw_log a
+left join volvo_online_activity_module.lottery_play_pool b on a.lottery_play_code = b.lottery_play_code and a.prize_code = b.prize_code
+where 1=1
+and a.lottery_play_code like '2024_26_memberDay%'  -- 当会员日code
+--and a.lottery_play_code like 'member_day_2024%'  -- 当会员日code
+
+
+
+-- 抽奖明细
+	select
+	a.member_id,
+	a.nick_name 姓名,
+	case when d.is_vehicle =1 then '是' 
+		 when d.is_vehicle =0 then '否' 
+		 end as 是否车主,
+	case when d.level_id=1 then '银卡'
+		 when d.level_id=2 then '金卡'
+		 when d.level_id=3 then '白金卡'
+		 when d.level_id=4 then '黑卡'
+		 end as 会员等级,
+	d.MEMBER_PHONE 沃世界注册手机号,
+	case when a.have_win = '1' then '中奖'
+		when a.have_win = '0' then '未中奖'
+		end 是否中奖,
+	case when a.have_send = '1' then '已发放'
+		when a.have_send = '0' then '未发放'
+		end 奖品是否发放,
+	a.create_time 抽奖时间,
+	b.prize_name 中奖奖品,
+	b.prize_level_nick_name 奖品等级,
+	hour(a.create_time)  时段,
+	a.lottery_play_code 抽奖code,
+	lpi.lottery_play_name 奖池名称,
+	case
+		when d.level_id=1 then '银卡'
+		when d.level_id>=2 then '金卡及以上'
+	end as 会员等级2
+	from volvo_online_activity_module.lottery_draw_log a
+	left join volvo_online_activity_module.lottery_play_pool b on a.lottery_play_code = b.lottery_play_code and a.prize_code = b.prize_code
+	left join volvo_online_activity_module.lottery_play_init lpi on lpi.lottery_play_code =a.lottery_play_code 
+	left join `member`.tc_member_info d on a.member_id = d.ID
+	where a.lottery_play_code like '2024_26_memberDay%'  -- 当月会员日code
+	and date(a.create_time)='2024-02-25'
+	and a.have_win = 1   -- 中奖
+	--and prize_name like '%2024%'
+	order by a.create_time
+
+
+——————————————————————————————————————————————————————明细 邀请试驾 预约试驾名单 充电订单 养修预约名单————————————————————————————————————————————————————————
+
+-- 邀请试驾线索量
+SELECT  
+distinct 
+	tir.invite_code `邀约code` ,
+	tir.invite_member_id `邀请人会员ID`,
+	m.member_phone `邀请人手机号`,
+	tir.create_time `邀约时间`,
+	tir.be_invite_member_id `被邀请人会员ID`,
+	tir.be_invite_mobile `被邀请人手机号`,
+	tir.reserve_time `留资时间`,
+	tir.vehicle_name `留资车型`,
+	tir.drive_time `实际试驾时间`
+from ods_invi.ods_invi_tm_invite_record_d tir 
+left join ods_memb.ods_memb_tc_member_info_cur m on toString(tir.invite_member_id)=toString(m.id)  
+join (
+	select distinct distinct_id
+	from ods_rawd.ods_rawd_events_d_di a
+	where 1=1
+	and a.`date` = '2024-02-25'
+	and distinct_id not like '%#%'
+	and length(a.distinct_id)<9
+	and event = 'Page_entry'
+	and page_title='2月会员日'
+	and activity_name='2024年2月会员日'
+	and (($lib in('iOS','Android') and left($app_version,1)='5') or $lib ='MiniProgram' or  channel in ('Mini', 'App') )
+)x on toString(x.distinct_id) =toString(m.cust_id) 
+where tir.is_deleted=0
+and date(tir.create_time)= '2024-02-25'
+and tir.be_invite_member_id is not null 
+
+-- 邀约试驾2023年12月
+SELECT  
+distinct 
+	tir.invite_code `邀约code` ,
+	tir.invite_member_id `邀请人会员ID`,
+	m.member_phone `邀请人手机号`,
+	tir.create_time `邀约时间`,
+	tir.be_invite_member_id `被邀请人会员ID`,
+	tir.be_invite_mobile `被邀请人手机号`,
+	tir.reserve_time `留资时间`,
+	tir.vehicle_name `留资车型`,
+	tir.drive_time `实际试驾时间`
+from ods_invi.ods_invi_tm_invite_record_d tir 
+left join ods_memb.ods_memb_tc_member_info_cur m on toString(tir.invite_member_id)=toString(m.id)  
+join (
+	select distinct distinct_id
+	from ods_rawd.ods_rawd_events_d_di a
+	where 1=1
+	and a.`date` >= '2023-12-25'
+	and a.`date` < '2024-01-02'
+	and distinct_id not like '%#%'
+	and length(a.distinct_id)<9
+	and event = 'Page_entry'
+	and page_title='12月会员日'
+	and activity_name='2023年12月会员日'
+	and (($lib in('iOS','Android') and left($app_version,1)='5') or $lib ='MiniProgram' or  channel in ('Mini', 'App') )
+)x on toString(x.distinct_id) =toString(m.cust_id) 
+where tir.is_deleted=0
+and date(tir.create_time) >= '2023-12-25'
+and date(tir.create_time) < '2024-01-02'
+--and tir.be_invite_member_id is not null 
+--and tir.drive_time>='2000-01-01'
+
+-- 邀约试驾 当月总留资量
+SELECT 
+t2.code `邀约code`, 
+	t2.member_id `邀请人会员ID`,
+	tmi.member_phone  `邀请人手机号`,
+	t2.create_time `邀约时间`,
+	t1.be_invite_member_id `被邀请人会员ID`,
+	t1.be_invite_mobile `被邀请人会员手机号`,
+	t1.reserve_time `留资时间`,
+	t1.be_invite_mobile `被邀请人手机号`,
+	t1.vehicle_name `留资车型`,
+	t1.drive_time `实际试驾时间`,
+	tmi.cust_id as distinct_id
+FROM ods_invi.ods_invi_tm_invite_code_d t2
+left join ods_invi.ods_invi_tm_invite_record_d t1 on t1.invite_code = t2.code 
+left join ods_memb.ods_memb_tc_member_info_cur tmi on t2.member_id = tmi.id
+WHERE t2.create_time >='2024-02-25' 
+and t2.create_time <'2024-01-26'
+
+-- 预约试驾
+	SELECT
+	distinct 
+	ta.ONE_ID `客户ID`,
+	m.id `试驾memberID`,
+	m.member_phone `沃世界注册手机号`,
+	m.is_vehicle,
+	ta.APPOINTMENT_ID `预约ID`,
+	ta.CREATED_AT `预约时间`,
+	tm2.model_name `预约车型`,
+	ta.ARRIVAL_DATE `实际到店日期`,
+	ca.active_name `活动名称`,
+	ta.CUSTOMER_NAME `姓名`,
+	ta.CUSTOMER_PHONE `手机号`,
+	h.`大区` as `大区`,
+	h.`小区` as `小区`,
+	ta.OWNER_CODE `经销商`,
+	CASE tad.STATUS
+		WHEN 70711001 THEN '待试驾'
+	    WHEN 70711002 THEN '已试驾' 
+	    WHEN 70711003 THEN '已取消'
+	    END `试驾状态`,
+	tad.DRIVE_S_AT `试驾开始时间`,
+	tad.DRIVE_E_AT `试驾结束时间`
+	FROM ods_cyap.ods_cyap_tt_appointment_d ta
+	left join ods_memb.ods_memb_tc_member_info_cur m on toString(ta.ONE_ID)=toString(m.cust_id) 
+	LEFT JOIN ods_dict.ods_dict_tc_code_d tc ON toString(tc.CODE_ID)  = toString(ta.IS_ARRIVED)
+	LEFT JOIN ods_cyap.ods_cyap_tt_appointment_drive_d tad ON toString(tad.APPOINTMENT_ID) = toString(ta.APPOINTMENT_ID )
+	LEFT JOIN ods_cydr.ods_cydr_tt_sales_orders_cur tso ON toString(tso.customer_business_id) = toString(ta.CUSTOMER_BUSINESS_ID)
+	LEFT JOIN ods_actv.ods_actv_cms_active_d ca ON toString(ca.uid) = toString(ta.CHANNEL_ID )
+	LEFT JOIN ods_dict.ods_dict_tc_code_d tc1 ON toString(tc1.CODE_ID) = toString(tso.so_status)
+	join (
+		select distinct distinct_id
+		from ods_rawd.ods_rawd_events_d_di a
+		where 1=1
+		and a.`date` = '2024-02-25'
+		and distinct_id not like '%#%'
+		and length(a.distinct_id)<9
+		and event = 'Page_entry'
+		and page_title='2月会员日'
+		and activity_name='2024年2月会员日'
+		and (($lib in('iOS','Android') and left($app_version,1)='5') or $lib ='MiniProgram' or  channel in ('Mini', 'App') )
+		)x on toString(x.distinct_id) =toString(m.cust_id) 
+	LEFT JOIN (
+	    select 
+	        DISTINCT
+	        tm.company_code as company_code,
+	        tg2.ORG_NAME `大区`,
+	        tg1.ORG_NAME `小区`
+	    from ods_orga.ods_orga_tm_company_cur tm
+	     JOIN ods_orga.ods_orga_tr_org_d tr1 ON tr1.org_id = tm.org_id
+	     JOIN ods_orga.ods_orga_tm_org_d tg1 ON tg1.ID = tr1.parent_org_id 
+	     JOIN ods_orga.ods_orga_tr_org_d tr2 ON tr2.org_id = tr1.parent_org_id
+	     JOIN ods_orga.ods_orga_tm_org_d tg2 ON tg2.ID = tr2.parent_org_id 
+	    where tm.is_deleted = 0 
+	    AND tm.company_type = 15061003 
+	    and tg1.ORG_TYPE = 15061007 
+	    and tg2.ORG_TYPE = 15061005 
+	    ORDER BY tm.company_code ASC) h on toString(h.company_code) = toString(ta.OWNER_CODE)
+	left join ods_bada.ods_bada_tm_model_cur tm2 on toString(tad.THIRD_ID) = toString(tm2.id )
+	WHERE 1=1
+	and date(ta.CREATED_AT) = '2024-02-25'
+	AND ta.APPOINTMENT_TYPE = 70691002     -- 预约试乘试驾
+	AND ta.DATA_SOURCE = 'C'   -- 数据来源B端C端
+	and tm2.is_deleted = 0
+--	and ca.active_code = 'IBDMAUGMIXSJXCXD2023VCCN'   -- 小程序
+	order by ta.CREATED_AT
+
+	-- 养修预约
+	select cast(tam.MAINTAIN_ID as varchar) "养修预约ID",
+       ta.APPOINTMENT_ID "预约ID",
+       ta.OWNER_CODE "经销商代码",
+       tc2.company_name_cn "经销商名称",
+       ta.ONE_ID "车主oneid",
+       tam.OWNER_ONE_ID,
+       ta.CUSTOMER_NAME "联系人姓名",
+       ta.CUSTOMER_PHONE "联系人手机号",
+       tmi.id "会员ID",
+       tmi.member_phone "沃世界绑定手机号",
+       tam.CAR_MODEL "预约车型",
+       tam.CAR_STYLE "预约车款",
+       tam.VIN "车架号",
+       case when tam.IS_TAKE_CAR = 10041001 then'是'
+    when tam.IS_TAKE_CAR = 10041002 then '否'
+     end  "是否取车",
+       case when tam.IS_GIVE_CAR = 10041001 then '是'
+         when tam.IS_GIVE_CAR = 10041002 then '否'
+       end "是否送车",
+       tam.MAINTAIN_STATUS "养修状态code",
+       tc.CODE_CN_DESC "养修状态",
+       tam.CREATED_AT "创建时间",
+       tam.UPDATED_AT "修改时间",
+       ta."CREATED_AT" "预约时间",
+       tam.WORK_ORDER_NUMBER "工单号"
+	from ods_cyap.ods_cyap_tt_appointment_d ta
+	left join ods_cyap.ods_cyap_tt_appointment_maintain_d tam on tam.APPOINTMENT_ID =ta.APPOINTMENT_ID 
+	left join ods_orga.ods_orga_tm_company_cur tc2 on tc2.company_code =ta.OWNER_CODE 
+	left JOIN ods_dict.ods_dict_tc_code_d tc on tc.CODE_ID =tam.MAINTAIN_STATUS 
+	left join 
+		(select tmi.*
+		,row_number()over(partition by tmi.cust_id order by tmi.create_time desc) rk 
+		from ods_memb.ods_memb_tc_member_info_cur tmi
+		where tmi.tmi.is_deleted =0
+		Settings allow_experimental_window_functions = 1
+		)tmi on ta.ONE_ID = tmi.cust_id 
+	join (
+			select distinct distinct_id
+			from ods_rawd.ods_rawd_events_d_di a
+			where 1=1
+			and a.`date` = '2024-02-25'
+			and distinct_id not like '%#%'
+			and length(a.distinct_id)<9
+			and event = 'Page_entry'
+			and page_title='2月会员日'
+			and activity_name='2024年2月会员日'
+			and (($lib in('iOS','Android') and left($app_version,1)='5') or $lib ='MiniProgram' or  channel in ('Mini', 'App') )
+		)x on toString(x.distinct_id) =toString(ta.ONE_ID) 
+	where 1=1
+	and tam.IS_DELETED <>1
+	and date(ta.CREATED_AT)= '2024-02-25'
+	and ta.DATA_SOURCE ='C'
+	and ta.APPOINTMENT_TYPE =70691005
+	and tmi.rk =1
+--	and tc.CODE_CN_DESC in ('提前进厂','准时进厂','延迟进厂','待评价','已评价') -- 进厂
+	
+-- 充电订单明细
+	select a.member_id as member_id,
+	m.member_phone `沃世界注册手机号`,
+	a.vin `绑定vin`,
+	tm.model_name `车型`,
+	a.station_name `充电站`,
+	a.start_time `充电开始时间`,
+	a.end_time `充电结束时间`,
+	a.charge_use_time `充电用时`,
+	a.charge_use_power `充电量`,
+	a.total_money_crossed `充电费款金额`,
+	a.stop_reason `结束原因`
+	from ods_chrg.ods_chrg_tt_charge_order_d a
+	left join ods_memb.ods_memb_tc_member_info_cur m on toString(a.member_id)=toString(m.id) 
+	left join ods_vehi.ods_vehi_tt_invoice_statistics_dms_cur tisd on toString(tisd.vin) =toString(a.vin )
+	left join ods_bada.ods_bada_tm_model_cur tm on tm.id=tisd.model_id 
+	join (
+			select distinct distinct_id
+			from ods_rawd.ods_rawd_events_d_di a
+			where 1=1
+			and a.`date` = '2024-02-25'
+			and distinct_id not like '%#%'
+			and length(a.distinct_id)<9
+			and event = 'Page_entry'
+			and page_title='2月会员日'
+			and activity_name='2024年2月会员日'
+			and (($lib in('iOS','Android') and left($app_version,1)='5') or $lib ='MiniProgram' or  channel in ('Mini', 'App') )
+		)x on toString(x.distinct_id) =toString(m.cust_id) 
+	where a.is_deleted =0
+	and tisd.is_deleted =0
+	and date(a.create_time)='2024-02-25'
+
+	
+——————————————————————————————————————————————————经销商导流数据————————————————————————————————————————————————————————————————————————————————————————————————————
+
+--活动期间经销商code的pv、uv
+SELECT 
+	promotion_channel_sub_type,
+	count(user_id) pv,
+	count(distinct user_id) uv
+from ods_rawd.ods_rawd_events_d_di
+where 1=1
+and date ='2024-02-25' 
+and event='Page_entry'
+and page_title='2月会员日'
+and activity_name='2024年2月会员日'
+--and (($lib in('iOS','Android') and left($app_version,1)='5') or $lib ='MiniProgram' or  channel in ('Mini', 'App'))
+and `$url` like '%promotion_channel_type=dealer%'
+and promotion_channel_sub_type <>''
+group by promotion_channel_sub_type
+order by uv desc
+	
+--活动期间首次访问活动页
+select 
+	promotion_channel_sub_type,
+--	count(user_id) pv,
+	count(distinct user_id) uv
+from (
+  select x.user_id
+  ,x.distinct_id
+  ,x.promotion_channel_sub_type
+  from (
+    select user_id
+    ,distinct_id
+    ,`$url`
+    ,promotion_channel_sub_type
+    ,row_number() over(partition by user_id order by `time`) as rk
+    from ods_rawd.ods_rawd_events_d_di
+    where 1=1
+    and date ='2024-02-25' 
+	and event='Page_entry'
+	and page_title='2月会员日'
+	and activity_name='2024年2月会员日'
+    and `$url` like '%promotion_channel_type=dealer%'
+    Settings allow_experimental_window_functions = 1
+  ) x
+  where x.rk=1
+) basic2
+where 1=1
+group by promotion_channel_sub_type
+order by uv desc 
